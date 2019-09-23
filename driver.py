@@ -76,7 +76,6 @@ def adjustLevel(img, minv=0, maxv=255, gamma=1.0):
 
 def convertToGreyscale(img):
     
-    # enhancer = ImageEnhance.Contrast(img)
     return ImageEnhance.Contrast(img).enhance(50.0)
 
 
@@ -90,8 +89,11 @@ def main():
     # Open image
     img = openImg(FILENAME)
     
-    # Adjust image level **MORE REFINEMENT NECESSARY**
-    levelledImg = adjustLevel(img, 100, 255, 9.99)
+    # Convert image to RGB
+    rgb = convertToRGB(img)
+    
+    # Adjust image level
+    levelledImg = adjustLevel(rgb, 100, 255, 9.99)
     
     # Convert to grayscale and binarize the image
     grayImg = convertToGreyscale(levelledImg)
