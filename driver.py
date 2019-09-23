@@ -7,6 +7,7 @@ Created on Sep 18, 2019
 from PIL import Image, ImageEnhance
 import colorsys
 
+# Specify the file name here
 FILENAME = "image01.png"
 
 
@@ -86,19 +87,11 @@ def binarizeImg(img):
 
 def main():
     
-    # Specify file name
-    # fileName = FILENAME
-    
     # Open image
     img = openImg(FILENAME)
     
-    # Convert image to RGB
-    rgb = convertToRGB(img)
-    
-    # imgPil = Image.fromarray(rgb)
-    
     # Adjust image level **MORE REFINEMENT NECESSARY**
-    levelledImg = adjustLevel(rgb, 100, 255, 9.99)
+    levelledImg = adjustLevel(img, 100, 255, 9.99)
     
     # Convert to grayscale and binarize the image
     grayImg = convertToGreyscale(levelledImg)
