@@ -126,3 +126,5 @@ dmypy.json
 .project
 .pydevproject
 *.png
+raw_images/
+processed_images/

@@ -4,11 +4,16 @@ Created on Sep 18, 2019
 @author: Anik
 '''
 
+from os import listdir
+from os.path import isfile, join
 from PIL import Image, ImageEnhance
-import colorsys
+import colorsys, os
+from PIL.ImageTk import getimage
 
 # Specify the file name here
-FILENAME = "image01.png"
+# FILENAME = "image01.png"
+INPUTFOLDERNAME = "raw_images"
+OUTPUTFOLDERNAME = "processed_images"
 
 
 class Level(object):
@@ -34,18 +39,131 @@ class Level(object):
         return tuple(int(255 * i)
                 for i
                 in colorsys.hsv_to_rgb(h, s, new_v))
+        
 
-
-def openImg(fileName):
+class File(object):
     
-    img = None
+    def __init__(self, inF, outF):
+        
+        self.inF = inF
+        self.outF = outF
     
-    try:
-        img = Image.open(fileName)
-    except FileNotFoundError:
-        print ("Invalid filename")
+    def getFilenames(self):
+        
+        if not os.path.isdir(self.inF):
+            os.makedirs(self.inF)
+            
+        return [f for f in listdir(self.inF) if isfile(join(self.inF, f))]
     
-    return img
+    def getImages(self):
+        
+        filenames = self.getFilenames()
+        imageList = []
+        
+        for file in filenames:
+            imageList.append(self.openImg(self.inF + "/" + file))
+        
+        return imageList
+    
+    def setImages(self, imageList):
+        
+        if not os.path.isdir(self.outF):
+            os.makedirs(self.outF)
+        
+        for i, img in enumerate(imageList):
+            img.save(self.outF + "/{:03d}.png".format(i))
+    
+    def openImg(self, fileName):
+        
+        img = None
+        
+        try:
+            img = Image.open(fileName)
+        except FileNotFoundError:
+            print ("Invalid filename")
+        
+        return img
+    
+    
+class Trim(object):
+    
+    def __init__(self, maxWhiteThresh, rowHeight):
+        
+        self.maxWhiteThresh = maxWhiteThresh
+        self.rowHeight = rowHeight
+    
+    def naiveTrim(self, img, topTrim, bottomTrim):
+    
+        width, height = img.size
+        
+        left = 0
+        right = width
+        top = int(height * topTrim)
+        bottom = int(height * bottomTrim)
+        
+        return img.crop((left, top, right, bottom))
+    
+    def smartTrim(self, img):
+        
+        width, height = img.size
+        
+        left = 0
+        right = width
+        top = self.getTop(img)
+        bottom = self.getBottom(img)
+        
+        return img.crop((left, top, right, bottom))
+    
+    def getTop(self, img):
+        
+        width, height = img.size
+        
+        left = 0
+        right = width
+        
+        for i in range (int(height / (2 * self.rowHeight)) - 1):
+            rowImg = img.crop((left, i * self.rowHeight, right, (i + 1) * self.rowHeight))
+            pixels = rowImg.getdata()
+            
+            whiteThresh = 50
+            count = 0
+            
+            for pixel in pixels:
+                if pixel > whiteThresh:
+                    count += 1
+                    
+            n = len(pixels)
+            
+            if (count / float(n)) < self.maxWhiteThresh:
+                return ((i + 1) * self.rowHeight)
+            
+        return  (int(height / 2) - 1)
+    
+    def getBottom(self, img):
+        
+        width, height = img.size
+        
+        left = 0
+        right = width
+        
+        for i in range (int(height / (2 * self.rowHeight)) - 1):
+            # rowImg = img.crop((left, height - (i * self.rowHeight), right, height - ((i + 1) * self.rowHeight)))
+            rowImg = img.crop((left, height - ((i + 1) * self.rowHeight), right, height - (i * self.rowHeight)))
+            pixels = rowImg.getdata()
+            
+            whiteThresh = 50
+            count = 0
+            
+            for pixel in pixels:
+                if pixel > whiteThresh:
+                    count += 1
+                    
+            n = len(pixels)
+            
+            if (count / float(n)) < self.maxWhiteThresh:
+                return (height - ((i + 1) * self.rowHeight))
+            
+        return  (int(height / 2) + 1)
 
 
 def convertToRGB(img):
@@ -84,26 +202,81 @@ def binarizeImg(img):
     return img.convert('1')
 
 
+def bulkProcess(imageList):
+    
+    processedImageList = []
+    
+    for i, img in enumerate(imageList):
+        
+        # Display status
+        # print("Image processing initiated")
+        
+        # Convert image to RGB
+        rgb = convertToRGB(img)
+        
+        # Adjust image level
+        levelledImg = adjustLevel(rgb, 100, 255, 9.99)
+        
+        # Convert to grayscale
+        grayImg = convertToGreyscale(levelledImg)
+        
+        # Binarize image
+        binImg = binarizeImg(grayImg)
+        
+        # Initialize trimmer
+        trimmer = Trim(0.1, 1)
+        
+        # Trim image (Naive)
+        trimmedImg = trimmer.smartTrim(binImg)
+        
+        # Update processed image list
+        processedImageList.append(trimmedImg)
+        
+        # Display status
+        print("Image {:03d}.png processing completed".format(i))
+    
+    return processedImageList
+
+
 def main():
     
+    # Initialize handler
+    handler = File(INPUTFOLDERNAME, OUTPUTFOLDERNAME)
+    
+    # Get images
+    imageList = handler.getImages()
+    
+    # Process images
+    processedImageList = bulkProcess(imageList)
+    
+    # Save images
+    handler.setImages(processedImageList)
+    
     # Open image
-    img = openImg(FILENAME)
+    # img = openImg(FILENAME)
     
     # Convert image to RGB
-    rgb = convertToRGB(img)
+    # rgb = convertToRGB(img)
     
     # Adjust image level
-    levelledImg = adjustLevel(rgb, 100, 255, 9.99)
+    # levelledImg = adjustLevel(rgb, 100, 255, 9.99)
     
-    # Convert to grayscale and binarize the image
-    grayImg = convertToGreyscale(levelledImg)
-    binImg = binarizeImg(grayImg)
+    # Convert to grayscale
+    # grayImg = convertToGreyscale(levelledImg)
+    
+    # Binarize image
+    # binImg = binarizeImg(grayImg)
     
     # Save processed image(s)
-    rgb.save("rgb.png")
-    levelledImg.save("levelledImg.png")
-    grayImg.save("grayImg.png")
-    binImg.save("binImg.png")
+    # rgb.save("rgb.png")
+    # levelledImg.save("levelledImg.png")
+    # grayImg.save("grayImg.png")
+    # binImg.save("binImg.png")
+    
+    # print(handler.getFilenames())
+    
+    # images = handler.getImages()
+    # handler.setImages(images)
     
     print("Program successfully terminated.")
     return
