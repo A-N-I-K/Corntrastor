@@ -12,15 +12,19 @@ class TestDriver(unittest.TestCase):
         
     def test_openImg_01(self):
         
-        result = driver.openImg("invalidImg.png")
+        handler = driver.File("test","test")
+        
+        result = handler.openImg("invalidImg.png")
         self.assertEqual(result, None, "Invalid file test error")
     
     def test_openImg_02(self):
         
+        handler = driver.File("test","test")
+        
         img = Image.new('RGB', (60, 30), color='red')
         img.save('testImg.png')
         
-        result = driver.openImg("testImg.png")
+        result = handler.openImg("testImg.png")
         self.assertEqual(isinstance(result, Image.Image), True, "Valid file test error")
         
         result.close()

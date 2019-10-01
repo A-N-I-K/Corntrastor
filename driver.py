@@ -8,10 +8,7 @@ from os import listdir
 from os.path import isfile, join
 from PIL import Image, ImageEnhance
 import colorsys, os
-from PIL.ImageTk import getimage
 
-# Specify the file name here
-# FILENAME = "image01.png"
 INPUTFOLDERNAME = "raw_images"
 OUTPUTFOLDERNAME = "processed_images"
 
@@ -105,7 +102,7 @@ class Trim(object):
     
     def smartTrim(self, img):
         
-        width, height = img.size
+        width = img.size[0]
         
         left = 0
         right = width
@@ -147,7 +144,6 @@ class Trim(object):
         right = width
         
         for i in range (int(height / (2 * self.rowHeight)) - 1):
-            # rowImg = img.crop((left, height - (i * self.rowHeight), right, height - ((i + 1) * self.rowHeight)))
             rowImg = img.crop((left, height - ((i + 1) * self.rowHeight), right, height - (i * self.rowHeight)))
             pixels = rowImg.getdata()
             
@@ -208,16 +204,13 @@ def bulkProcess(imageList):
     
     for i, img in enumerate(imageList):
         
-        # Display status
-        # print("Image processing initiated")
-        
         # Convert image to RGB
         rgb = convertToRGB(img)
         
         # Adjust image level
         levelledImg = adjustLevel(rgb, 100, 255, 9.99)
         
-        # Convert to grayscale
+        # Convert to greyscale
         grayImg = convertToGreyscale(levelledImg)
         
         # Binarize image
@@ -252,33 +245,7 @@ def main():
     # Save images
     handler.setImages(processedImageList)
     
-    # Open image
-    # img = openImg(FILENAME)
-    
-    # Convert image to RGB
-    # rgb = convertToRGB(img)
-    
-    # Adjust image level
-    # levelledImg = adjustLevel(rgb, 100, 255, 9.99)
-    
-    # Convert to grayscale
-    # grayImg = convertToGreyscale(levelledImg)
-    
-    # Binarize image
-    # binImg = binarizeImg(grayImg)
-    
-    # Save processed image(s)
-    # rgb.save("rgb.png")
-    # levelledImg.save("levelledImg.png")
-    # grayImg.save("grayImg.png")
-    # binImg.save("binImg.png")
-    
-    # print(handler.getFilenames())
-    
-    # images = handler.getImages()
-    # handler.setImages(images)
-    
-    print("Program successfully terminated.")
+    print("Program successfully terminated")
     return
 
 
