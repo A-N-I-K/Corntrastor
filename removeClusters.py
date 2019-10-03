@@ -2,7 +2,7 @@
 '''
 Created on Oct 1, 2019
 
-@author: Jieyun Hu
+@author: Jen
 '''
 import numpy as np
 from skimage.io import imread
