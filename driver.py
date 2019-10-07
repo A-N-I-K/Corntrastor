@@ -8,6 +8,16 @@ from os import listdir
 from os.path import isfile, join
 from PIL import Image, ImageEnhance
 import colorsys, os
+from test import test_imghdr
+
+from skimage.color import rgb2gray
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+from IPython import get_ipython
+from scipy import ndimage
+
+from sklearn.cluster import KMeans
 
 INPUTFOLDERNAME = "raw_images"
 OUTPUTFOLDERNAME = "processed_images"
@@ -198,11 +208,73 @@ def binarizeImg(img):
     return img.convert('1')
 
 
+def thresholdSegmentation(image):
+    
+    image = plt.imread('1117_607.png')
+    image.shape
+    
+    plt.imshow(image)
+    
+    print("AS")
+    
+    gray = rgb2gray(image)
+    plt.imshow(gray, cmap='gray')
+    
+    gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
+    for i in range(gray_r.shape[0]):
+        if gray_r[i] > gray_r.mean():
+            gray_r[i] = 1
+        else:
+            gray_r[i] = 0
+    gray = gray_r.reshape(gray.shape[0], gray.shape[1])
+    plt.imshow(gray, cmap='gray')
+    
+    plt.imshow(image)
+    
+    gray = rgb2gray(image)
+    gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
+    for i in range(gray_r.shape[0]):
+        if gray_r[i] > gray_r.mean():
+            gray_r[i] = 3
+        elif gray_r[i] > 0.5:
+            gray_r[i] = 2
+        elif gray_r[i] > 0.25:
+            gray_r[i] = 1
+        else:
+            gray_r[i] = 0
+    gray = gray_r.reshape(gray.shape[0], gray.shape[1])
+    plt.imsave('test.png', gray, cmap='gray')
+    
+    return image
+
+def kMeansSegmentation(image):
+    
+    pic = plt.imread('1117_607.png')/225  # dividing by 255 to bring the pixel values between 0 and 1
+    print(pic.shape)
+    plt.imshow(pic)
+    
+    pic_n = pic.reshape(pic.shape[0]*pic.shape[1], pic.shape[2])
+    pic_n.shape
+    
+    
+    kmeans = KMeans(n_clusters=5, random_state=0).fit(pic_n)
+    pic2show = kmeans.cluster_centers_[kmeans.labels_]
+    
+    cluster_pic = pic2show.reshape(pic.shape[0], pic.shape[1], pic.shape[2])
+    plt.imshow(cluster_pic)
+    
+    plt.imsave('test.png', cluster_pic)
+    
+    return image
+
+
 def bulkProcess(imageList):
     
     processedImageList = []
     
     for i, img in enumerate(imageList):
+        
+        newImg = kMeansSegmentation(img)
         
         # Convert image to RGB
         rgb = convertToRGB(img)
@@ -223,7 +295,7 @@ def bulkProcess(imageList):
         trimmedImg = trimmer.smartTrim(binImg)
         
         # Update processed image list
-        processedImageList.append(trimmedImg)
+        processedImageList.append(newImg)
         
         # Display status
         print("Image {:03d}.png processing completed".format(i))
@@ -243,7 +315,7 @@ def main():
     processedImageList = bulkProcess(imageList)
     
     # Save images
-    handler.setImages(processedImageList)
+    # handler.setImages(processedImageList)
     
     print("Program successfully terminated")
     return
