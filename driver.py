@@ -7,20 +7,14 @@ Created on Sep 18, 2019
 from os import listdir
 from os.path import isfile, join
 from PIL import Image, ImageEnhance
-import colorsys, os
-from test import test_imghdr
-
 from skimage.color import rgb2gray
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-from IPython import get_ipython
-from scipy import ndimage
-
 from sklearn.cluster import KMeans
+from skimage.io import imread
+import colorsys, os, matplotlib.pyplot
 
 INPUTFOLDERNAME = "raw_images"
-OUTPUTFOLDERNAME = "processed_images"
+INTERMEDFOLDERNAME = "processed_images"
+OUTPUTFOLDERNAME = "filtered_images"
 
 
 class Level(object):
@@ -71,6 +65,16 @@ class File(object):
             imageList.append(self.openImg(self.inF + "/" + file))
         
         return imageList
+
+    def getSKImages(self):
+        
+        filenames = self.getFilenames()
+        imageList = []
+        
+        for file in filenames:
+            imageList.append(self.openSKImg(self.inF + "/" + file))
+        
+        return imageList
     
     def setImages(self, imageList):
         
@@ -79,6 +83,14 @@ class File(object):
         
         for i, img in enumerate(imageList):
             img.save(self.outF + "/{:03d}.png".format(i))
+            
+    def setSKImages(self, imageList):
+        
+        if not os.path.isdir(self.outF):
+            os.makedirs(self.outF)
+        
+        for i, img in enumerate(imageList):
+            matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img, cmap='gray')
     
     def openImg(self, fileName):
         
@@ -86,6 +98,17 @@ class File(object):
         
         try:
             img = Image.open(fileName)
+        except FileNotFoundError:
+            print ("Invalid filename")
+        
+        return img
+    
+    def openSKImg(self, fileName):
+        
+        img = None
+        
+        try:
+            img = imread(fileName)
         except FileNotFoundError:
             print ("Invalid filename")
         
@@ -210,15 +233,13 @@ def binarizeImg(img):
 
 def thresholdSegmentation(image):
     
-    image = plt.imread('1117_607.png')
+    image = matplotlib.pyplot.imread('1117_607.png')
     image.shape
     
-    plt.imshow(image)
-    
-    print("AS")
+    # matplotlib.pyplot.imshow(image)
     
     gray = rgb2gray(image)
-    plt.imshow(gray, cmap='gray')
+    # matplotlib.pyplot.imshow(gray, cmap='gray')
     
     gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
     for i in range(gray_r.shape[0]):
@@ -227,9 +248,9 @@ def thresholdSegmentation(image):
         else:
             gray_r[i] = 0
     gray = gray_r.reshape(gray.shape[0], gray.shape[1])
-    plt.imshow(gray, cmap='gray')
+    # matplotlib.pyplot.imshow(gray, cmap='gray')
     
-    plt.imshow(image)
+    # matplotlib.pyplot.imshow(image)
     
     gray = rgb2gray(image)
     gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
@@ -243,29 +264,81 @@ def thresholdSegmentation(image):
         else:
             gray_r[i] = 0
     gray = gray_r.reshape(gray.shape[0], gray.shape[1])
-    plt.imsave('test.png', gray, cmap='gray')
+    matplotlib.pyplot.imsave('test.png', gray, cmap='gray')
     
-    return image
+    # img = Image.fromarray(gray , 'L')
+    # return img
+
 
 def kMeansSegmentation(image):
     
-    pic = plt.imread('1117_607.png')/225  # dividing by 255 to bring the pixel values between 0 and 1
-    print(pic.shape)
-    plt.imshow(pic)
+    pic = matplotlib.pyplot.imread('1117_607.png') / 225  # dividing by 255 to bring the pixel values between 0 and 1
+    # print(pic.shape)
+    # matplotlib.pyplot.imshow(pic)
     
-    pic_n = pic.reshape(pic.shape[0]*pic.shape[1], pic.shape[2])
+    pic_n = pic.reshape(pic.shape[0] * pic.shape[1], pic.shape[2])
     pic_n.shape
-    
     
     kmeans = KMeans(n_clusters=5, random_state=0).fit(pic_n)
     pic2show = kmeans.cluster_centers_[kmeans.labels_]
     
     cluster_pic = pic2show.reshape(pic.shape[0], pic.shape[1], pic.shape[2])
-    plt.imshow(cluster_pic)
+    # matplotlib.pyplot.imshow(cluster_pic)
     
-    plt.imsave('test.png', cluster_pic)
+    matplotlib.pyplot.imsave('test.png', cluster_pic)
+    
+    # img = Image.fromarray(cluster_pic , 'L')
+    # return img
+
+    
+def filterClusters(image, thresh):
+    
+    # Initialize cluster count
+    
+    clusCount = 0
+    row = len(image)
+    col = len(image[0])
+    
+    for i in range(row):
+        for j in range(col):
+            
+            if image[i][j] == 255:
+                
+                image[i][j] = 1
+                
+                # Initialize size of cluster as mutable object and set the minimum value to 1
+                size = [1]
+                # size.append(1)
+                size[0] = 1 
+                
+                # Perform DFS (using Jen's DFS method)
+                dfsWithSize(i, j, image, row, col, size)
+                
+                if size[0] > thresh:
+                    image[i][j] = 255
+                
+                # Update cluster count
+                clusCount += 1
     
     return image
+
+
+def dfsWithSize(i, j, image, row, col, size):
+    
+    if(i < 0 or i >= row or j < 0 or j >= col):
+        return
+    
+    if(image[i][j] == 0):
+        return
+    
+    if(image[i][j] == 255):
+        image[i][j] = 0
+        size[0] += 1
+    
+    dfsWithSize(i + 1, j, image, row, col, size)
+    dfsWithSize(i, j + 1, image, row, col, size)
+    dfsWithSize(i - 1, j, image, row, col, size)
+    dfsWithSize(i, j - 1, image, row, col, size)
 
 
 def bulkProcess(imageList):
@@ -274,7 +347,7 @@ def bulkProcess(imageList):
     
     for i, img in enumerate(imageList):
         
-        newImg = kMeansSegmentation(img)
+        # newImg = kMeansSegmentation(img)
         
         # Convert image to RGB
         rgb = convertToRGB(img)
@@ -294,8 +367,11 @@ def bulkProcess(imageList):
         # Trim image (Naive)
         trimmedImg = trimmer.smartTrim(binImg)
         
+        # Filter clusters by pixel density and dot representation
+        # filteredImg = filterClusters(trimmedImg, 10)
+        
         # Update processed image list
-        processedImageList.append(newImg)
+        processedImageList.append(trimmedImg)
         
         # Display status
         print("Image {:03d}.png processing completed".format(i))
@@ -303,19 +379,49 @@ def bulkProcess(imageList):
     return processedImageList
 
 
+def bulkFilter(imageList):
+    
+    filteredImageList = []
+    
+    for i, img in enumerate(imageList):
+        
+        # Filter clusters by pixel density and dot representation
+        filteredImg = filterClusters(img, 10)
+        
+        # Update filtered image list
+        filteredImageList.append(filteredImg)
+        
+        # Display status
+        print("Image {:03d}.png cluster filtering completed".format(i))
+        
+    return filteredImageList
+
+
 def main():
     
-    # Initialize handler
-    handler = File(INPUTFOLDERNAME, OUTPUTFOLDERNAME)
+    # Initialize process handler
+    handlerProcess = File(INPUTFOLDERNAME, INTERMEDFOLDERNAME)
     
     # Get images
-    imageList = handler.getImages()
+    imageList = handlerProcess.getImages()
     
     # Process images
     processedImageList = bulkProcess(imageList)
     
     # Save images
-    # handler.setImages(processedImageList)
+    handlerProcess.setImages(processedImageList)
+    
+    # Initialize filter handler
+    handlerFilter = File(INTERMEDFOLDERNAME, OUTPUTFOLDERNAME)
+    
+    # Get images
+    imageList = handlerFilter.getSKImages()
+    
+    # Cluster filter images
+    filteredImageList = bulkFilter(imageList)
+    
+    # Save images
+    handlerFilter.setSKImages(filteredImageList)
     
     print("Program successfully terminated")
     return
