@@ -90,7 +90,8 @@ class File(object):
             os.makedirs(self.outF)
         
         for i, img in enumerate(imageList):
-            matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img, cmap='gray')
+            # matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img, cmap='gray')
+            matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img)
     
     def openImg(self, fileName):
         
@@ -231,7 +232,7 @@ def binarizeImg(img):
     return img.convert('1')
 
 
-def thresholdSegmentation(image):
+def thresholdSegmentation():
     
     image = matplotlib.pyplot.imread('1117_607.png')
     image.shape
@@ -270,7 +271,7 @@ def thresholdSegmentation(image):
     # return img
 
 
-def kMeansSegmentation(image):
+def kMeansSegmentation():
     
     pic = matplotlib.pyplot.imread('1117_607.png') / 225  # dividing by 255 to bring the pixel values between 0 and 1
     # print(pic.shape)
@@ -294,7 +295,6 @@ def kMeansSegmentation(image):
 def filterClusters(image, thresh):
     
     # Initialize cluster count
-    
     clusCount = 0
     row = len(image)
     col = len(image[0])
@@ -308,8 +308,8 @@ def filterClusters(image, thresh):
                 
                 # Initialize size of cluster as mutable object and set the minimum value to 1
                 size = [1]
-                # size.append(1)
                 size[0] = 1 
+                # size.append(1)
                 
                 # Perform DFS (using Jen's DFS method)
                 dfsWithSize(i, j, image, row, col, size)
@@ -347,8 +347,6 @@ def bulkProcess(imageList):
     
     for i, img in enumerate(imageList):
         
-        # newImg = kMeansSegmentation(img)
-        
         # Convert image to RGB
         rgb = convertToRGB(img)
         
@@ -366,9 +364,6 @@ def bulkProcess(imageList):
         
         # Trim image (Naive)
         trimmedImg = trimmer.smartTrim(binImg)
-        
-        # Filter clusters by pixel density and dot representation
-        # filteredImg = filterClusters(trimmedImg, 10)
         
         # Update processed image list
         processedImageList.append(trimmedImg)
