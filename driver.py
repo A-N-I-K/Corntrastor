@@ -4,17 +4,24 @@ Created on Sep 18, 2019
 @author: Anik
 '''
 
+from matplotlib import style
+from numpy import ones, vstack
+from numpy.linalg import lstsq, norm
 from os import listdir
 from os.path import isfile, join
 from PIL import Image, ImageEnhance
 from skimage.color import rgb2gray
 from sklearn.cluster import KMeans
 from skimage.io import imread
-import colorsys, os, matplotlib.pyplot
+from statistics import mean
+import colorsys, matplotlib.pyplot, numpy, os, pygame, sys
 
 INPUTFOLDERNAME = "raw_images"
 INTERMEDFOLDERNAME = "processed_images"
 OUTPUTFOLDERNAME = "filtered_images"
+ROWS = 4
+
+pygame.init()
 
 
 class Level(object):
@@ -90,8 +97,9 @@ class File(object):
             os.makedirs(self.outF)
         
         for i, img in enumerate(imageList):
-            # matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img, cmap='gray')
-            matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img)
+            
+            matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img, cmap='gray')
+            # matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img)
     
     def openImg(self, fileName):
         
@@ -153,6 +161,7 @@ class Trim(object):
         right = width
         
         for i in range (int(height / (2 * self.rowHeight)) - 1):
+            
             rowImg = img.crop((left, i * self.rowHeight, right, (i + 1) * self.rowHeight))
             pixels = rowImg.getdata()
             
@@ -160,6 +169,7 @@ class Trim(object):
             count = 0
             
             for pixel in pixels:
+                
                 if pixel > whiteThresh:
                     count += 1
                     
@@ -178,6 +188,7 @@ class Trim(object):
         right = width
         
         for i in range (int(height / (2 * self.rowHeight)) - 1):
+            
             rowImg = img.crop((left, height - ((i + 1) * self.rowHeight), right, height - (i * self.rowHeight)))
             pixels = rowImg.getdata()
             
@@ -185,6 +196,7 @@ class Trim(object):
             count = 0
             
             for pixel in pixels:
+                
                 if pixel > whiteThresh:
                     count += 1
                     
@@ -194,6 +206,122 @@ class Trim(object):
                 return (height - ((i + 1) * self.rowHeight))
             
         return  (int(height / 2) + 1)
+
+
+class Line(object):
+    
+    def __init__(self):
+        
+        self.dummy = None
+        # self.test()
+        
+    def getLineEq(self, segment):
+        
+        # points = [(1,5),(3,4)]
+        x_coords, y_coords = zip(*segment)
+        A = vstack([x_coords, ones(len(x_coords))]).T
+        m, c = lstsq(A, y_coords)[0]
+        print("Line Solution is y = {m}x + {c}".format(m=m, c=c))
+    
+    def getShortestDist(self, point, segment):
+        
+        p1 = numpy.array(segment[0])
+        p2 = numpy.array(segment[1])
+        p3 = numpy.array(point)
+        
+        # print(p1, p2, p3)
+        
+        return norm(numpy.cross(p2 - p1, p1 - p3)) / norm(p2 - p1)
+    
+    def getBestFit(self, points, start, end, height):
+        
+        minDist = [(-1, -1), (-1, -1), sys.maxsize]
+        
+        for i in range(end - start):
+            
+            for j in range(end - start):
+                
+                totalDist = 0
+                pointCount = 0
+                
+                for point in points:
+                    
+                    # if point[1] >= start and point[1] < end:
+                        
+                    # print("point", point)
+                    # dist = self.getShortestDist(point, [(0, i + start), (height, j + start)]) * abs(((end - start) / 2) - point[1])
+                    dist = self.getShortestDist(point, [(0, i + start), (height, j + start)])
+                    # print(dist)
+                    totalDist += dist
+                    pointCount += 1
+                
+                # print("totaldist", i, j, totalDist)
+                
+                if totalDist < minDist[2]:
+                    minDist = [(0, i + start), (height, j + start), totalDist, pow(2, totalDist / pointCount) / 10]
+        
+        print("minDist", minDist)
+        return [minDist[0], minDist[1]]
+    
+    def getPoints(self, img):
+        
+        points = []
+        
+        row = len(img)
+        col = len(img[0])
+        
+        for i in range(row):
+            
+            for j in range(col):
+                
+                # Check for white pixel
+                if img[i][j][0] == 255:
+                    
+                    points.append((i, j))
+        
+        return points
+    
+    def getSubPoints(self, img, start, end):
+        
+        points = []
+        
+        row = len(img)
+        col = len(img[0])
+        
+        for i in range(row):
+            
+            for j in range(col):
+                
+                # Check for white pixel
+                if j >= start and j < end and img[i][j][0] == 255:
+                    
+                    points.append((i, j))
+        
+        return points
+    
+    def getXY(self, points):
+        
+        x = []
+        y = []
+        
+        for point in points:
+            
+            x.append(point[0])
+            y.append(point[1])
+        
+        return x, y
+    
+    def getSlopeAndIntercept(self, x, y):
+        
+        m = (((mean(x) * mean(y)) - mean(x * y)) / ((mean(x) * mean(x)) - mean(x * x)))
+        b = mean(y) - m * mean(x)
+        
+        return m, b
+    
+    # Test function
+    # def test(self):
+        
+        # print(self.getShortestDist((1, 5), [(0, 0), (0, 10)]))
 
 
 def convertToRGB(img):
@@ -292,19 +420,20 @@ def kMeansSegmentation():
     # return img
 
     
-def filterClusters(image, thresh):
+def filterClusters(img, thresh):
     
     # Initialize cluster count
     clusCount = 0
-    row = len(image)
-    col = len(image[0])
+    row = len(img)
+    col = len(img[0])
     
     for i in range(row):
         for j in range(col):
             
-            if image[i][j] == 255:
+            # Check for white pixel
+            if img[i][j] == 255:
                 
-                image[i][j] = 1
+                img[i][j] = 1
                 
                 # Initialize size of cluster as mutable object and set the minimum value to 1
                 size = [1]
@@ -312,33 +441,33 @@ def filterClusters(image, thresh):
                 # size.append(1)
                 
                 # Perform DFS (using Jen's DFS method)
-                dfsWithSize(i, j, image, row, col, size)
+                dfsWithSize(i, j, img, row, col, size)
                 
                 if size[0] > thresh:
-                    image[i][j] = 255
+                    img[i][j] = 255
                 
                 # Update cluster count
                 clusCount += 1
     
-    return image
+    return img
 
 
-def dfsWithSize(i, j, image, row, col, size):
+def dfsWithSize(i, j, img, row, col, size):
     
     if(i < 0 or i >= row or j < 0 or j >= col):
         return
     
-    if(image[i][j] == 0):
+    if(img[i][j] == 0):
         return
     
-    if(image[i][j] == 255):
-        image[i][j] = 0
+    if(img[i][j] == 255):
+        img[i][j] = 0
         size[0] += 1
     
-    dfsWithSize(i + 1, j, image, row, col, size)
-    dfsWithSize(i, j + 1, image, row, col, size)
-    dfsWithSize(i - 1, j, image, row, col, size)
-    dfsWithSize(i, j - 1, image, row, col, size)
+    dfsWithSize(i + 1, j, img, row, col, size)
+    dfsWithSize(i, j + 1, img, row, col, size)
+    dfsWithSize(i - 1, j, img, row, col, size)
+    dfsWithSize(i, j - 1, img, row, col, size)
 
 
 def bulkProcess(imageList):
@@ -393,6 +522,94 @@ def bulkFilter(imageList):
 
 
 def main():
+    
+    # Line testing
+    line = Line()
+    filename = "004.png"
+    
+    img = None
+        
+    try:
+        img = imread(filename)
+    except FileNotFoundError:
+        print ("Invalid filename")
+    
+    # Image properties
+    height = len(img)
+    width = len(img[0])
+    
+    stripWidth = int(width / 4)
+    
+    segments = []
+    
+    for i in range(ROWS):
+        
+        points = line.getSubPoints(img, i * stripWidth, (i + 1) * stripWidth)
+        segments.append(line.getBestFit(points, i * stripWidth, (i + 1) * stripWidth, height))
+    
+    # points = line.getSubPoints(img, 40, 80)
+    # segment = line.getBestFit(points, 40, 80, height)
+    # segment = segments[0]
+    
+    # plotlib stuff
+    style.use('fivethirtyeight')
+    
+    # first strip
+    points = line.getSubPoints(img, 0 * stripWidth, (0 + 1) * stripWidth)
+    
+    x, y = line.getXY(points)
+    
+    xs = numpy.array(x, dtype=numpy.float64)
+    ys = numpy.array(y, dtype=numpy.float64)
+    
+    m, b = line.getSlopeAndIntercept(xs, ys)
+    
+    regLine = [(m * i) + b for i in xs]
+    
+    matplotlib.pyplot.scatter(xs, ys)
+    matplotlib.pyplot.plot(xs, regLine)
+    matplotlib.pyplot.show()
+    
+    # pygame stuff
+    scaleFactor = 3
+    
+    window_height = height * scaleFactor
+    window_width = width * scaleFactor
+    
+    # animation_increment = 10
+    clock_tick_rate = 20
+    
+    size = (window_width, window_height)
+    screen = pygame.display.set_mode(size)
+    
+    pygame.display.set_caption("Best Fit Line")
+    
+    dead = False
+    
+    clock = pygame.time.Clock()
+    background_image = pygame.image.load(filename).convert()
+    background_image = pygame.transform.scale(background_image, (window_width, window_height))
+    
+    while(dead == False):
+        
+        for event in pygame.event.get():
+            
+            if event.type == pygame.QUIT:
+                dead = True
+    
+        screen.blit(background_image, [0, 0])
+        
+        for segment in segments:
+            
+            pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
+            
+        # pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
+        
+        pygame.display.update()
+        pygame.display.flip()
+        clock.tick(clock_tick_rate)
+    
+    # print(points)
     
     # Initialize process handler
     handlerProcess = File(INPUTFOLDERNAME, INTERMEDFOLDERNAME)
