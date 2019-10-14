@@ -523,117 +523,121 @@ def bulkFilter(imageList):
 
 def main():
     
-    # Line testing
-    line = Line()
-    filename = "004.png"
+    batchMode = False
     
-    img = None
+    if (not batchMode):
         
-    try:
-        img = imread(filename)
-    except FileNotFoundError:
-        print ("Invalid filename")
-    
-    # Image properties
-    height = len(img)
-    width = len(img[0])
-    
-    stripWidth = int(width / 4)
-    
-    segments = []
-    
-    for i in range(ROWS):
+        # Line testing
+        line = Line()
+        filename = "filtered_images/040.png"
         
-        points = line.getSubPoints(img, i * stripWidth, (i + 1) * stripWidth)
-        segments.append(line.getBestFit(points, i * stripWidth, (i + 1) * stripWidth, height))
-    
-    # points = line.getSubPoints(img, 40, 80)
-    # segment = line.getBestFit(points, 40, 80, height)
-    # segment = segments[0]
-    
-    # plotlib stuff
-    style.use('fivethirtyeight')
-    
-    # first strip
-    points = line.getSubPoints(img, 0 * stripWidth, (0 + 1) * stripWidth)
-    
-    x, y = line.getXY(points)
-    
-    xs = numpy.array(x, dtype=numpy.float64)
-    ys = numpy.array(y, dtype=numpy.float64)
-    
-    m, b = line.getSlopeAndIntercept(xs, ys)
-    
-    regLine = [(m * i) + b for i in xs]
-    
-    matplotlib.pyplot.scatter(xs, ys)
-    matplotlib.pyplot.plot(xs, regLine)
-    matplotlib.pyplot.show()
-    
-    # pygame stuff
-    scaleFactor = 3
-    
-    window_height = height * scaleFactor
-    window_width = width * scaleFactor
-    
-    # animation_increment = 10
-    clock_tick_rate = 20
-    
-    size = (window_width, window_height)
-    screen = pygame.display.set_mode(size)
-    
-    pygame.display.set_caption("Best Fit Line")
-    
-    dead = False
-    
-    clock = pygame.time.Clock()
-    background_image = pygame.image.load(filename).convert()
-    background_image = pygame.transform.scale(background_image, (window_width, window_height))
-    
-    while(dead == False):
-        
-        for event in pygame.event.get():
+        img = None
             
-            if event.type == pygame.QUIT:
-                dead = True
-    
-        screen.blit(background_image, [0, 0])
+        try:
+            img = imread(filename)
+        except FileNotFoundError:
+            print ("Invalid filename")
         
-        for segment in segments:
-            
-            pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
-            
-        # pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
+        # Image properties
+        height = len(img)
+        width = len(img[0])
         
-        pygame.display.update()
-        pygame.display.flip()
-        clock.tick(clock_tick_rate)
+        stripWidth = int(width / 4)
+        
+        segments = []
+        
+        for i in range(ROWS):
+            
+            points = line.getSubPoints(img, i * stripWidth, (i + 1) * stripWidth)
+            segments.append(line.getBestFit(points, i * stripWidth, (i + 1) * stripWidth, height))
+        
+        # points = line.getSubPoints(img, 40, 80)
+        # segment = line.getBestFit(points, 40, 80, height)
+        # segment = segments[0]
+        
+        # plotlib stuff
+        style.use('fivethirtyeight')
+        
+        # first strip for plot demonstration
+        points = line.getSubPoints(img, 0 * stripWidth, (0 + 1) * stripWidth)
+        
+        x, y = line.getXY(points)
+        
+        xs = numpy.array(x, dtype=numpy.float64)
+        ys = numpy.array(y, dtype=numpy.float64)
+        
+        m, b = line.getSlopeAndIntercept(xs, ys)
+        
+        regLine = [(m * i) + b for i in xs]
+        
+        matplotlib.pyplot.scatter(xs, ys)
+        matplotlib.pyplot.plot(xs, regLine)
+        matplotlib.pyplot.show()
+        
+        # pygame stuff
+        scaleFactor = 3
+        
+        window_height = height * scaleFactor
+        window_width = width * scaleFactor
+        
+        # animation_increment = 10
+        clock_tick_rate = 20
+        
+        size = (window_width, window_height)
+        screen = pygame.display.set_mode(size)
+        
+        pygame.display.set_caption("Best Fit Line")
+        
+        dead = False
+        
+        clock = pygame.time.Clock()
+        background_image = pygame.image.load(filename).convert()
+        background_image = pygame.transform.scale(background_image, (window_width, window_height))
+        
+        while(dead == False):
+            
+            for event in pygame.event.get():
+                
+                if event.type == pygame.QUIT:
+                    dead = True
+        
+            screen.blit(background_image, [0, 0])
+            
+            for segment in segments:
+                
+                pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
+                
+            # pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
+            
+            pygame.display.update()
+            pygame.display.flip()
+            clock.tick(clock_tick_rate)
+            
+    else:
     
-    # print(points)
-    
-    # Initialize process handler
-    handlerProcess = File(INPUTFOLDERNAME, INTERMEDFOLDERNAME)
-    
-    # Get images
-    imageList = handlerProcess.getImages()
-    
-    # Process images
-    processedImageList = bulkProcess(imageList)
-    
-    # Save images
-    handlerProcess.setImages(processedImageList)
-    
-    # Initialize filter handler
-    handlerFilter = File(INTERMEDFOLDERNAME, OUTPUTFOLDERNAME)
-    
-    # Get images
-    imageList = handlerFilter.getSKImages()
-    
-    # Cluster filter images
-    filteredImageList = bulkFilter(imageList)
-    
-    # Save images
-    handlerFilter.setSKImages(filteredImageList)
+        # Initialize process handler
+        handlerProcess = File(INPUTFOLDERNAME, INTERMEDFOLDERNAME)
+        
+        # Get images
+        imageList = handlerProcess.getImages()
+        
+        # Process images
+        processedImageList = bulkProcess(imageList)
+        
+        # Save images
+        handlerProcess.setImages(processedImageList)
+        
+        # Initialize filter handler
+        handlerFilter = File(INTERMEDFOLDERNAME, OUTPUTFOLDERNAME)
+        
+        # Get images
+        imageList = handlerFilter.getSKImages()
+        
+        # Cluster filter images
+        filteredImageList = bulkFilter(imageList)
+        
+        # Save images
+        handlerFilter.setSKImages(filteredImageList)
     
     print("Program successfully terminated")
     return
