@@ -44,6 +44,7 @@ class Level(object):
         
         h, s, v = colorsys.rgb_to_hsv(*(i / 255.0 for i in band_values))
         new_v = self.newLevel(v)
+        
         return tuple(int(255 * i)
                 for i
                 in colorsys.hsv_to_rgb(h, s, new_v))
@@ -59,6 +60,7 @@ class File(object):
     def getFilenames(self):
         
         if not os.path.isdir(self.inF):
+            
             os.makedirs(self.inF)
             
         return [f for f in listdir(self.inF) if isfile(join(self.inF, f))]
@@ -69,6 +71,7 @@ class File(object):
         imageList = []
         
         for file in filenames:
+            
             imageList.append(self.openImg(self.inF + "/" + file))
         
         return imageList
@@ -79,6 +82,7 @@ class File(object):
         imageList = []
         
         for file in filenames:
+            
             imageList.append(self.openSKImg(self.inF + "/" + file))
         
         return imageList
@@ -86,14 +90,17 @@ class File(object):
     def setImages(self, imageList):
         
         if not os.path.isdir(self.outF):
+            
             os.makedirs(self.outF)
         
         for i, img in enumerate(imageList):
+            
             img.save(self.outF + "/{:03d}.png".format(i))
             
     def setSKImages(self, imageList):
         
         if not os.path.isdir(self.outF):
+            
             os.makedirs(self.outF)
         
         for i, img in enumerate(imageList):
@@ -106,8 +113,11 @@ class File(object):
         img = None
         
         try:
+            
             img = Image.open(fileName)
+            
         except FileNotFoundError:
+            
             print ("Invalid filename")
         
         return img
@@ -117,8 +127,11 @@ class File(object):
         img = None
         
         try:
+            
             img = imread(fileName)
+            
         except FileNotFoundError:
+            
             print ("Invalid filename")
         
         return img
@@ -171,11 +184,13 @@ class Trim(object):
             for pixel in pixels:
                 
                 if pixel > whiteThresh:
+                    
                     count += 1
                     
             n = len(pixels)
             
             if (count / float(n)) < self.maxWhiteThresh:
+                
                 return ((i + 1) * self.rowHeight)
             
         return  (int(height / 2) - 1)
@@ -198,11 +213,13 @@ class Trim(object):
             for pixel in pixels:
                 
                 if pixel > whiteThresh:
+                    
                     count += 1
                     
             n = len(pixels)
             
             if (count / float(n)) < self.maxWhiteThresh:
+                
                 return (height - ((i + 1) * self.rowHeight))
             
         return  (int(height / 2) + 1)
@@ -221,6 +238,7 @@ class Line(object):
         x_coords, y_coords = zip(*segment)
         A = vstack([x_coords, ones(len(x_coords))]).T
         m, c = lstsq(A, y_coords)[0]
+        
         print("Line Solution is y = {m}x + {c}".format(m=m, c=c))
     
     def getShortestDist(self, point, segment):
@@ -258,6 +276,7 @@ class Line(object):
                 # print("totaldist", i, j, totalDist)
                 
                 if totalDist < minDist[2]:
+                    
                     minDist = [(0, i + start), (height, j + start), totalDist, pow(2, totalDist / pointCount) / 10]
         
         print("minDist", minDist)
@@ -281,23 +300,17 @@ class Line(object):
         
         return points
     
-    def getSubPoints(self, img, start, end):
+    def getSubPoints(self, points, start, end):
         
-        points = []
+        subPoints = []
         
-        row = len(img)
-        col = len(img[0])
-        
-        for i in range(row):
+        for point in points:
             
-            for j in range(col):
+            if point[1] >= start and point[1] < end:
                 
-                # Check for white pixel
-                if j >= start and j < end and img[i][j][0] == 255:
-                    
-                    points.append((i, j))
-        
-        return points
+                subPoints.append(point)
+                
+        return subPoints
     
     def getXY(self, points):
         
@@ -337,6 +350,7 @@ def convertToRGB(img):
 def adjustLevel(img, minv=0, maxv=255, gamma=1.0):
 
     if img.mode != "RGB":
+        
         raise ValueError("Image not in RGB mode")
 
     newImg = img.copy()
@@ -371,11 +385,17 @@ def thresholdSegmentation():
     # matplotlib.pyplot.imshow(gray, cmap='gray')
     
     gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
+    
     for i in range(gray_r.shape[0]):
+        
         if gray_r[i] > gray_r.mean():
+            
             gray_r[i] = 1
+            
         else:
+            
             gray_r[i] = 0
+            
     gray = gray_r.reshape(gray.shape[0], gray.shape[1])
     # matplotlib.pyplot.imshow(gray, cmap='gray')
     
@@ -383,15 +403,25 @@ def thresholdSegmentation():
     
     gray = rgb2gray(image)
     gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
+    
     for i in range(gray_r.shape[0]):
+        
         if gray_r[i] > gray_r.mean():
+            
             gray_r[i] = 3
+            
         elif gray_r[i] > 0.5:
+            
             gray_r[i] = 2
+            
         elif gray_r[i] > 0.25:
+            
             gray_r[i] = 1
+            
         else:
+            
             gray_r[i] = 0
+            
     gray = gray_r.reshape(gray.shape[0], gray.shape[1])
     matplotlib.pyplot.imsave('test.png', gray, cmap='gray')
     
@@ -428,6 +458,7 @@ def filterClusters(img, thresh):
     col = len(img[0])
     
     for i in range(row):
+        
         for j in range(col):
             
             # Check for white pixel
@@ -444,6 +475,7 @@ def filterClusters(img, thresh):
                 dfsWithSize(i, j, img, row, col, size)
                 
                 if size[0] > thresh:
+                    
                     img[i][j] = 255
                 
                 # Update cluster count
@@ -455,12 +487,15 @@ def filterClusters(img, thresh):
 def dfsWithSize(i, j, img, row, col, size):
     
     if(i < 0 or i >= row or j < 0 or j >= col):
+        
         return
     
     if(img[i][j] == 0):
+        
         return
     
     if(img[i][j] == 255):
+        
         img[i][j] = 0
         size[0] += 1
     
@@ -529,27 +564,32 @@ def main():
         
         # Line testing
         line = Line()
-        filename = "filtered_images/040.png"
+        filename = "filtered_images/007.png"
         
         img = None
             
         try:
+            
             img = imread(filename)
+            
         except FileNotFoundError:
+            
             print ("Invalid filename")
         
         # Image properties
         height = len(img)
         width = len(img[0])
         
-        stripWidth = int(width / 4)
+        stripWidth = int(width / ROWS)
         
         segments = []
         
+        points = line.getPoints(img)
+        
         for i in range(ROWS):
             
-            points = line.getSubPoints(img, i * stripWidth, (i + 1) * stripWidth)
-            segments.append(line.getBestFit(points, i * stripWidth, (i + 1) * stripWidth, height))
+            subPoints = line.getSubPoints(points, i * stripWidth, (i + 1) * stripWidth)
+            segments.append(line.getBestFit(subPoints, i * stripWidth, (i + 1) * stripWidth, height))
         
         # points = line.getSubPoints(img, 40, 80)
         # segment = line.getBestFit(points, 40, 80, height)
@@ -559,9 +599,9 @@ def main():
         style.use('fivethirtyeight')
         
         # first strip for plot demonstration
-        points = line.getSubPoints(img, 0 * stripWidth, (0 + 1) * stripWidth)
+        subPoints = line.getSubPoints(points, 0 * stripWidth, (0 + 1) * stripWidth)
         
-        x, y = line.getXY(points)
+        x, y = line.getXY(subPoints)
         
         xs = numpy.array(x, dtype=numpy.float64)
         ys = numpy.array(y, dtype=numpy.float64)
@@ -599,6 +639,7 @@ def main():
             for event in pygame.event.get():
                 
                 if event.type == pygame.QUIT:
+                    
                     dead = True
         
             screen.blit(background_image, [0, 0])
@@ -646,4 +687,5 @@ def main():
 if __name__ == '__main__':
     
     main()
+    
     pass
