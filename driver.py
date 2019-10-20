@@ -24,8 +24,10 @@ ROWS = 4
 pygame.init()
 
 
+# Class for adjusting image level
 class Level(object):
     
+    # Constructor
     def __init__(self, minv, maxv, gamma):
         
         self.minv = minv / 255.0
@@ -33,6 +35,7 @@ class Level(object):
         self._interval = self.maxv - self.minv
         self._invgamma = 1.0 / gamma
 
+    # Obtain level value
     def newLevel(self, value):
         
         if value <= self.minv: return 0.0
@@ -40,6 +43,7 @@ class Level(object):
         
         return ((value - self.minv) / self._interval) ** self._invgamma
 
+    # Level and convert the image tp RGB
     def convertAndLevel(self, band_values):
         
         h, s, v = colorsys.rgb_to_hsv(*(i / 255.0 for i in band_values))
@@ -50,13 +54,16 @@ class Level(object):
                 in colorsys.hsv_to_rgb(h, s, new_v))
         
 
+# Class for handling image files
 class File(object):
     
+    # Constructor
     def __init__(self, inF, outF):
         
         self.inF = inF
         self.outF = outF
     
+    # Returns a list of filenames in the Input Folder
     def getFilenames(self):
         
         if not os.path.isdir(self.inF):
@@ -65,6 +72,7 @@ class File(object):
             
         return [f for f in listdir(self.inF) if isfile(join(self.inF, f))]
     
+    # Returns a list of image objects in the input folder
     def getImages(self):
         
         filenames = self.getFilenames()
@@ -76,6 +84,7 @@ class File(object):
         
         return imageList
 
+    # Returns a list of sci-kit image objects in the input folder
     def getSKImages(self):
         
         filenames = self.getFilenames()
@@ -87,6 +96,7 @@ class File(object):
         
         return imageList
     
+    # Saves a list of image objects as image in the output folder
     def setImages(self, imageList):
         
         if not os.path.isdir(self.outF):
@@ -96,7 +106,8 @@ class File(object):
         for i, img in enumerate(imageList):
             
             img.save(self.outF + "/{:03d}.png".format(i))
-            
+    
+    # Saves a list of sci-kit image objects as image in the output folder
     def setSKImages(self, imageList):
         
         if not os.path.isdir(self.outF):
@@ -106,8 +117,8 @@ class File(object):
         for i, img in enumerate(imageList):
             
             matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img, cmap='gray')
-            # matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img)
     
+    # Returns a single image object
     def openImg(self, fileName):
         
         img = None
@@ -122,6 +133,7 @@ class File(object):
         
         return img
     
+    # Returns a single sci-kit image object
     def openSKImg(self, fileName):
         
         img = None
@@ -135,15 +147,18 @@ class File(object):
             print ("Invalid filename")
         
         return img
-    
-    
+
+
+# Class for trimming and resizing image
 class Trim(object):
     
+    # Constructor
     def __init__(self, maxWhiteThresh, rowHeight):
         
         self.maxWhiteThresh = maxWhiteThresh
         self.rowHeight = rowHeight
     
+    # Naive trimming that trims the top and the bottom of the image by a fixed amount
     def naiveTrim(self, img, topTrim, bottomTrim):
     
         width, height = img.size
@@ -155,6 +170,7 @@ class Trim(object):
         
         return img.crop((left, top, right, bottom))
     
+    # Smart trimming that trims the top and the bottom of the image based on pixel density of each row 
     def smartTrim(self, img):
         
         width = img.size[0]
@@ -166,6 +182,7 @@ class Trim(object):
         
         return img.crop((left, top, right, bottom))
     
+    # Compares each single pixel row of the image starting from the top with the threshold, and returns the distance from the top when the white pixel density falls below the threshold
     def getTop(self, img):
         
         width, height = img.size
@@ -195,6 +212,7 @@ class Trim(object):
             
         return  (int(height / 2) - 1)
     
+    # Compares each single pixel row of the image starting from the bottom with the threshold, and returns the distance from the top when the white pixel density falls below the threshold
     def getBottom(self, img):
         
         width, height = img.size
@@ -225,63 +243,126 @@ class Trim(object):
         return  (int(height / 2) + 1)
 
 
+# Class for fitting lines in a cluster of points
 class Line(object):
     
+    # Constructor
     def __init__(self):
         
         self.dummy = None
-        # self.test()
-        
+    
+    # Returns the gradient and the intercept of a line equation
     def getLineEq(self, segment):
         
-        # points = [(1,5),(3,4)]
         x_coords, y_coords = zip(*segment)
         A = vstack([x_coords, ones(len(x_coords))]).T
         m, c = lstsq(A, y_coords)[0]
         
         print("Line Solution is y = {m}x + {c}".format(m=m, c=c))
     
+    # Returns the distance between a point and a line segment
     def getShortestDist(self, point, segment):
         
+        # Convert the points coordinates to numpy array
         p1 = numpy.array(segment[0])
         p2 = numpy.array(segment[1])
         p3 = numpy.array(point)
         
-        # print(p1, p2, p3)
-        
+        # Calculate the shortest distance from a point to a line segment 
         return norm(numpy.cross(p2 - p1, p1 - p3)) / norm(p2 - p1)
     
+    # Fits a line in a subset of points that reside between a starting value and an ending value of y
     def getBestFit(self, points, start, end, height):
         
-        minDist = [(-1, -1), (-1, -1), sys.maxsize]
+        # Initialize the minimum distance as infinity
+        minDist = [(-1, -1), (-1, -1), sys.maxsize, -1]
         
+        # For each pixel in the top row, iterate through each pixel in the bottom row
         for i in range(end - start):
             
             for j in range(end - start):
                 
+                # Initialize sum variables
                 totalDist = 0
                 pointCount = 0
                 
                 for point in points:
                     
-                    # if point[1] >= start and point[1] < end:
-                        
-                    # print("point", point)
                     # dist = self.getShortestDist(point, [(0, i + start), (height, j + start)]) * abs(((end - start) / 2) - point[1])
                     dist = self.getShortestDist(point, [(0, i + start), (height, j + start)])
-                    # print(dist)
+                    
                     totalDist += dist
                     pointCount += 1
                 
-                # print("totaldist", i, j, totalDist)
-                
+                # Check and update minimum distance if necessary
                 if totalDist < minDist[2]:
                     
+                    # Update top point, bottom point, sum of all distances between all the points and the line segment, and deviation
                     minDist = [(0, i + start), (height, j + start), totalDist, pow(2, totalDist / pointCount) / 10]
         
-        print("minDist", minDist)
+        print("Best Fit Strip : ", minDist)
         return [minDist[0], minDist[1]]
     
+    # Fits a line in a subset of points that reside between a starting value and an ending value of y
+    def getStrictFit(self, points, rows, height, width):
+        
+        # Calculate the width of each strip
+        stripWidth = round(width / rows)
+        
+        # Initialize the minimum distance as infinity
+        minDist = [(-1, -1), (-1, -1), sys.maxsize]
+        
+        subPoints = []
+        
+        # Group the points into their respective strips
+        for i in range(rows):
+            
+            subPoints.append(self.getSubPoints(points, i * stripWidth, (i + 1) * stripWidth))
+        
+        for i in range(stripWidth):
+            
+            for j in range(stripWidth):
+                
+                # Initialize sum variables
+                totalDist = 0
+                pointCount = 0
+                
+                firstLineY = i
+                lastLineY = j + (stripWidth * (rows - 1))
+                
+                lineGap = (lastLineY - firstLineY) / (rows - 1)
+                
+                linesY = []
+                
+                for k in range (rows):
+                    
+                    linesY.append(firstLineY + (k * lineGap))
+                
+                for k in range (rows):
+                    
+                    subDist = 0
+                    subCount = 0
+                    
+                    for subpoint in subPoints[k]:
+                        
+                        dist = self.getShortestDist(subpoint, [(0, linesY[k]), (height, linesY[k])])
+                        
+                        subDist += dist
+                        subCount += 1
+                        
+                        totalDist += dist
+                        pointCount += 1
+                
+                # Check and update minimum distance if necessary
+                if totalDist < minDist[2]:
+                    
+                    # Update Y coordinates of first line, last line and sum of all distances between all the points and the line segment
+                    minDist = [firstLineY, lastLineY, totalDist]
+        
+        print("Strict Fit Range : ", minDist)
+        return [minDist[0], minDist[1]]
+    
+    # Gets the coordinates of all the white pixels in the image
     def getPoints(self, img):
         
         points = []
@@ -300,6 +381,7 @@ class Line(object):
         
         return points
     
+    # Gets the coordinates of all the white pixels in the image that reside between a starting value and an ending value of y
     def getSubPoints(self, points, start, end):
         
         subPoints = []
@@ -312,6 +394,7 @@ class Line(object):
                 
         return subPoints
     
+    # Gets a list of x coordinates and a list of y coordinates from a list of point coordinates
     def getXY(self, points):
         
         x = []
@@ -324,19 +407,16 @@ class Line(object):
         
         return x, y
     
+    # Gets the slope and the intercept of a line from a list of x coordinates and a list of y coordinates 
     def getSlopeAndIntercept(self, x, y):
         
         m = (((mean(x) * mean(y)) - mean(x * y)) / ((mean(x) * mean(x)) - mean(x * x)))
         b = mean(y) - m * mean(x)
         
         return m, b
-    
-    # Test function
-    # def test(self):
-        
-        # print(self.getShortestDist((1, 5), [(0, 0), (0, 10)]))
 
 
+# Converts an Image object to an RGB Image object
 def convertToRGB(img):
     
     img.load()
@@ -346,7 +426,8 @@ def convertToRGB(img):
     
     return rgb
 
-    
+
+# Adjusts the level of an RGB Image object
 def adjustLevel(img, minv=0, maxv=255, gamma=1.0):
 
     if img.mode != "RGB":
@@ -364,16 +445,19 @@ def adjustLevel(img, minv=0, maxv=255, gamma=1.0):
     return newImg
 
 
+# Converts the image to greyscale
 def convertToGreyscale(img):
     
     return ImageEnhance.Contrast(img).enhance(50.0)
 
 
+# Coverts the image to binary mode
 def binarizeImg(img):
     
     return img.convert('1')
 
 
+# Threshold Segmentation for test purposes
 def thresholdSegmentation():
     
     image = matplotlib.pyplot.imread('1117_607.png')
@@ -429,6 +513,7 @@ def thresholdSegmentation():
     # return img
 
 
+# K-Means Segmentation for test purposes
 def kMeansSegmentation():
     
     pic = matplotlib.pyplot.imread('1117_607.png') / 225  # dividing by 255 to bring the pixel values between 0 and 1
@@ -449,7 +534,8 @@ def kMeansSegmentation():
     # img = Image.fromarray(cluster_pic , 'L')
     # return img
 
-    
+
+# Filters clusters based on pixel density and represents each cluster with a single point (dot)
 def filterClusters(img, thresh):
     
     # Initialize cluster count
@@ -471,9 +557,10 @@ def filterClusters(img, thresh):
                 size[0] = 1 
                 # size.append(1)
                 
-                # Perform DFS (using Jen's DFS method)
+                # Perform DFS
                 dfsWithSize(i, j, img, row, col, size)
                 
+                # Only 
                 if size[0] > thresh:
                     
                     img[i][j] = 255
@@ -484,6 +571,7 @@ def filterClusters(img, thresh):
     return img
 
 
+# DFS search that keeps track of the size (i.e. pixel density)
 def dfsWithSize(i, j, img, row, col, size):
     
     if(i < 0 or i >= row or j < 0 or j >= col):
@@ -505,6 +593,7 @@ def dfsWithSize(i, j, img, row, col, size):
     dfsWithSize(i, j - 1, img, row, col, size)
 
 
+# Processes all images in an image list
 def bulkProcess(imageList):
     
     processedImageList = []
@@ -538,6 +627,7 @@ def bulkProcess(imageList):
     return processedImageList
 
 
+# Filters clusters in all images in an image list
 def bulkFilter(imageList):
     
     filteredImageList = []
@@ -556,18 +646,21 @@ def bulkFilter(imageList):
     return filteredImageList
 
 
+# Main function
 def main():
     
+    # Specify mode of operation and algorithm here
     batchMode = False
+    lineFitAlg = "plotlib"
     
     if (not batchMode):
         
-        # Line testing
-        line = Line()
-        filename = "filtered_images/007.png"
+        filename = "filtered_images/037.png"
         
+        line = Line()
         img = None
-            
+        
+        # Open a single image
         try:
             
             img = imread(filename)
@@ -580,47 +673,59 @@ def main():
         height = len(img)
         width = len(img[0])
         
-        stripWidth = int(width / ROWS)
-        
-        segments = []
+        stripWidth = round(width / ROWS)
         
         points = line.getPoints(img)
         
-        for i in range(ROWS):
+        if lineFitAlg == "best" or lineFitAlg == "overlap":
             
-            subPoints = line.getSubPoints(points, i * stripWidth, (i + 1) * stripWidth)
-            segments.append(line.getBestFit(subPoints, i * stripWidth, (i + 1) * stripWidth, height))
+            # Execute best fit algorithm
+            segments = []
+            
+            for i in range(ROWS):
+                
+                subPoints = line.getSubPoints(points, i * stripWidth, (i + 1) * stripWidth)
+                segments.append(line.getBestFit(subPoints, i * stripWidth, (i + 1) * stripWidth, height))
+                
+        if lineFitAlg == "strict" or lineFitAlg == "overlap":
+            
+            # Execute strict fit algorithm
+            strictSegments = []
+            
+            strictBounds = line.getStrictFit(points, ROWS, height, width)
+            lineGap = (strictBounds[1] - strictBounds[0]) / (ROWS - 1)
+            
+            for i in range(ROWS):
+                
+                strictSegments.append([(0, strictBounds[0] + (i * lineGap)), (height, strictBounds[0] + (i * lineGap))])
+                
+        if lineFitAlg == "plotlib" or lineFitAlg == "overlap":
         
-        # points = line.getSubPoints(img, 40, 80)
-        # segment = line.getBestFit(points, 40, 80, height)
-        # segment = segments[0]
+            # Execute plotlib
+            style.use('fivethirtyeight')
+            
+            # First strip for plot demonstration
+            subPoints = line.getSubPoints(points, 0, stripWidth)
+            
+            x, y = line.getXY(subPoints)
+            
+            xs = numpy.array(x, dtype=numpy.float64)
+            ys = numpy.array(y, dtype=numpy.float64)
+            
+            m, b = line.getSlopeAndIntercept(xs, ys)
+            
+            regLine = [(m * i) + b for i in xs]
+            
+            matplotlib.pyplot.scatter(xs, ys)
+            matplotlib.pyplot.plot(xs, regLine)
+            matplotlib.pyplot.show()
         
-        # plotlib stuff
-        style.use('fivethirtyeight')
-        
-        # first strip for plot demonstration
-        subPoints = line.getSubPoints(points, 0 * stripWidth, (0 + 1) * stripWidth)
-        
-        x, y = line.getXY(subPoints)
-        
-        xs = numpy.array(x, dtype=numpy.float64)
-        ys = numpy.array(y, dtype=numpy.float64)
-        
-        m, b = line.getSlopeAndIntercept(xs, ys)
-        
-        regLine = [(m * i) + b for i in xs]
-        
-        matplotlib.pyplot.scatter(xs, ys)
-        matplotlib.pyplot.plot(xs, regLine)
-        matplotlib.pyplot.show()
-        
-        # pygame stuff
+        # Definitions for pygame
         scaleFactor = 3
         
         window_height = height * scaleFactor
         window_width = width * scaleFactor
         
-        # animation_increment = 10
         clock_tick_rate = 20
         
         size = (window_width, window_height)
@@ -630,6 +735,7 @@ def main():
         
         dead = False
         
+        # Set pygame background
         clock = pygame.time.Clock()
         background_image = pygame.image.load(filename).convert()
         background_image = pygame.transform.scale(background_image, (window_width, window_height))
@@ -644,12 +750,20 @@ def main():
         
             screen.blit(background_image, [0, 0])
             
-            for segment in segments:
-                
-                pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
-                
-            # pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
+            # Check mode of operation
+            if lineFitAlg == "best" or lineFitAlg == "overlap":
             
+                for segment in segments:
+                    
+                    pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
+                
+            if lineFitAlg == "strict" or lineFitAlg == "overlap":
+            
+                for strictSegment in strictSegments:
+                    
+                    pygame.draw.lines(screen, (255, 255, 0), False, [(strictSegment[0][1] * scaleFactor, strictSegment[0][0] * scaleFactor), (strictSegment[1][1] * scaleFactor, strictSegment[1][0] * scaleFactor)], scaleFactor)
+            
+            # Update and display
             pygame.display.update()
             pygame.display.flip()
             clock.tick(clock_tick_rate)
@@ -687,5 +801,4 @@ def main():
 if __name__ == '__main__':
     
     main()
-    
     pass
