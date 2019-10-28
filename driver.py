@@ -560,7 +560,7 @@ def filterClusters(img, thresh):
                 # Perform DFS
                 dfsWithSize(i, j, img, row, col, size)
                 
-                # Only 
+                # Only cluster with pixel density above a certain threshold is kept
                 if size[0] > thresh:
                     
                     img[i][j] = 255
@@ -651,11 +651,11 @@ def main():
     
     # Specify mode of operation and algorithm here
     batchMode = False
-    lineFitAlg = "plotlib"
+    lineFitAlg = "strict"
     
     if (not batchMode):
         
-        filename = "filtered_images/037.png"
+        filename = "filtered_images/040.png"
         
         line = Line()
         img = None
@@ -755,13 +755,13 @@ def main():
             
                 for segment in segments:
                     
-                    pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor)
+                    pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor * 2)
                 
             if lineFitAlg == "strict" or lineFitAlg == "overlap":
             
                 for strictSegment in strictSegments:
                     
-                    pygame.draw.lines(screen, (255, 255, 0), False, [(strictSegment[0][1] * scaleFactor, strictSegment[0][0] * scaleFactor), (strictSegment[1][1] * scaleFactor, strictSegment[1][0] * scaleFactor)], scaleFactor)
+                    pygame.draw.lines(screen, (255, 255, 0), False, [(strictSegment[0][1] * scaleFactor, strictSegment[0][0] * scaleFactor), (strictSegment[1][1] * scaleFactor, strictSegment[1][0] * scaleFactor)], scaleFactor * 2)
             
             # Update and display
             pygame.display.update()
