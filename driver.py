@@ -300,7 +300,8 @@ class Line(object):
                     # Update top point, bottom point, sum of all distances between all the points and the line segment, and deviation
                     minDist = [(0, i + start), (height, j + start), totalDist, pow(2, totalDist / pointCount) / 10]
         
-        print("Best Fit Strip : ", minDist)
+        # print("Best Fit Strip : ", minDist)
+        print(minDist[3])
         return [minDist[0], minDist[1]]
     
     # Fits a line in a subset of points that reside between a starting value and an ending value of y
@@ -340,15 +341,16 @@ class Line(object):
                 
                 for k in range (rows):
                     
-                    subDist = 0
-                    subCount = 0
+                    # subDist = 0
+                    # subCount = 0
                     
+                    # Get the sum of all shortest distances of all the subpoints from their respective line segments 
                     for subpoint in subPoints[k]:
                         
                         dist = self.getShortestDist(subpoint, [(0, linesY[k]), (height, linesY[k])])
                         
-                        subDist += dist
-                        subCount += 1
+                        # subDist += dist
+                        # subCount += 1
                         
                         totalDist += dist
                         pointCount += 1
@@ -359,7 +361,22 @@ class Line(object):
                     # Update Y coordinates of first line, last line and sum of all distances between all the points and the line segment
                     minDist = [firstLineY, lastLineY, totalDist]
         
-        print("Strict Fit Range : ", minDist)
+        # Calculate the gap between each strict line segment
+        lineGap = (lastLineY - firstLineY) / (rows - 1)
+        
+        # Calculate the sum of all shortest distances of all the subpoints from their respective line segments after strict fitting lines are acquired
+        subDist = []
+        
+        for i in range(rows):
+            
+            dist, subCount = self.getSubDistSum(points, i * stripWidth, (i + 1) * stripWidth, ([(0, firstLineY + (i * lineGap)), (height, firstLineY + (i * lineGap))]))     
+            # subDist.append(pow(2, dist / subCount) / 10)
+            subDist.append(dist / subCount)
+            print (dist, subCount)
+        
+        # subDist = self.getSubDistSum(points, 0, stripWidth, [(0, firstLineY), (height, firstLineY)])
+        
+        print("Strict Fit Range : ", minDist[2], subDist)
         return [minDist[0], minDist[1]]
     
     # Gets the coordinates of all the white pixels in the image
@@ -393,6 +410,22 @@ class Line(object):
                 subPoints.append(point)
                 
         return subPoints
+    
+    def getSubDistSum(self, points, start, end, segment):
+        
+        # Get all the subpoints from points within the given y range
+        subPoints = self.getSubPoints(points, start, end)
+        
+        # Calculate the sum of all shortest distances of the subpoints from the line segment
+        subDist = 0
+        subCount = 0
+        
+        for subpoint in subPoints:
+            
+            subDist += self.getShortestDist(subpoint, segment)
+            subCount += 1
+        
+        return subDist, subCount
     
     # Gets a list of x coordinates and a list of y coordinates from a list of point coordinates
     def getXY(self, points):
@@ -651,122 +684,129 @@ def main():
     
     # Specify mode of operation and algorithm here
     batchMode = False
-    lineFitAlg = "strict"
+    lineFitAlg = "best"
+    draw = False
     
     if (not batchMode):
         
-        filename = "filtered_images/040.png"
-        
-        line = Line()
-        img = None
-        
-        # Open a single image
-        try:
+        for x in range(41):
             
-            img = imread(filename)
-            
-        except FileNotFoundError:
-            
-            print ("Invalid filename")
+            print()
         
-        # Image properties
-        height = len(img)
-        width = len(img[0])
-        
-        stripWidth = round(width / ROWS)
-        
-        points = line.getPoints(img)
-        
-        if lineFitAlg == "best" or lineFitAlg == "overlap":
+            filename = "filtered_images/%03d.png" % x
             
-            # Execute best fit algorithm
-            segments = []
+            line = Line()
+            img = None
             
-            for i in range(ROWS):
+            # Open a single image
+            try:
                 
-                subPoints = line.getSubPoints(points, i * stripWidth, (i + 1) * stripWidth)
-                segments.append(line.getBestFit(subPoints, i * stripWidth, (i + 1) * stripWidth, height))
+                img = imread(filename)
                 
-        if lineFitAlg == "strict" or lineFitAlg == "overlap":
-            
-            # Execute strict fit algorithm
-            strictSegments = []
-            
-            strictBounds = line.getStrictFit(points, ROWS, height, width)
-            lineGap = (strictBounds[1] - strictBounds[0]) / (ROWS - 1)
-            
-            for i in range(ROWS):
+            except FileNotFoundError:
                 
-                strictSegments.append([(0, strictBounds[0] + (i * lineGap)), (height, strictBounds[0] + (i * lineGap))])
-                
-        if lineFitAlg == "plotlib" or lineFitAlg == "overlap":
-        
-            # Execute plotlib
-            style.use('fivethirtyeight')
+                print ("Invalid filename")
             
-            # First strip for plot demonstration
-            subPoints = line.getSubPoints(points, 0, stripWidth)
+            # Image properties
+            height = len(img)
+            width = len(img[0])
             
-            x, y = line.getXY(subPoints)
+            stripWidth = round(width / ROWS)
             
-            xs = numpy.array(x, dtype=numpy.float64)
-            ys = numpy.array(y, dtype=numpy.float64)
+            points = line.getPoints(img)
             
-            m, b = line.getSlopeAndIntercept(xs, ys)
-            
-            regLine = [(m * i) + b for i in xs]
-            
-            matplotlib.pyplot.scatter(xs, ys)
-            matplotlib.pyplot.plot(xs, regLine)
-            matplotlib.pyplot.show()
-        
-        # Definitions for pygame
-        scaleFactor = 3
-        
-        window_height = height * scaleFactor
-        window_width = width * scaleFactor
-        
-        clock_tick_rate = 20
-        
-        size = (window_width, window_height)
-        screen = pygame.display.set_mode(size)
-        
-        pygame.display.set_caption("Best Fit Line")
-        
-        dead = False
-        
-        # Set pygame background
-        clock = pygame.time.Clock()
-        background_image = pygame.image.load(filename).convert()
-        background_image = pygame.transform.scale(background_image, (window_width, window_height))
-        
-        while(dead == False):
-            
-            for event in pygame.event.get():
-                
-                if event.type == pygame.QUIT:
-                    
-                    dead = True
-        
-            screen.blit(background_image, [0, 0])
-            
-            # Check mode of operation
             if lineFitAlg == "best" or lineFitAlg == "overlap":
-            
-                for segment in segments:
-                    
-                    pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor * 2)
                 
-            if lineFitAlg == "strict" or lineFitAlg == "overlap":
-            
-                for strictSegment in strictSegments:
+                # Execute best fit algorithm
+                segments = []
+                
+                for i in range(ROWS):
                     
-                    pygame.draw.lines(screen, (255, 255, 0), False, [(strictSegment[0][1] * scaleFactor, strictSegment[0][0] * scaleFactor), (strictSegment[1][1] * scaleFactor, strictSegment[1][0] * scaleFactor)], scaleFactor * 2)
+                    subPoints = line.getSubPoints(points, i * stripWidth, (i + 1) * stripWidth)
+                    segments.append(line.getBestFit(subPoints, i * stripWidth, (i + 1) * stripWidth, height))
+                    
+            if lineFitAlg == "strict" or lineFitAlg == "overlap":
+                
+                # Execute strict fit algorithm
+                strictSegments = []
+                
+                strictBounds = line.getStrictFit(points, ROWS, height, width)
+                lineGap = (strictBounds[1] - strictBounds[0]) / (ROWS - 1)
+                
+                for i in range(ROWS):
+                    
+                    strictSegments.append([(0, strictBounds[0] + (i * lineGap)), (height, strictBounds[0] + (i * lineGap))])
+                    
+            if lineFitAlg == "plotlib":
             
-            # Update and display
-            pygame.display.update()
-            pygame.display.flip()
-            clock.tick(clock_tick_rate)
+                # Execute plotlib
+                style.use('fivethirtyeight')
+                
+                # First strip for plot demonstration
+                subPoints = line.getSubPoints(points, 0, stripWidth)
+                
+                x, y = line.getXY(subPoints)
+                
+                xs = numpy.array(x, dtype=numpy.float64)
+                ys = numpy.array(y, dtype=numpy.float64)
+                
+                m, b = line.getSlopeAndIntercept(xs, ys)
+                
+                regLine = [(m * i) + b for i in xs]
+                
+                matplotlib.pyplot.scatter(xs, ys)
+                matplotlib.pyplot.plot(xs, regLine)
+                matplotlib.pyplot.show()
+            
+            # Definitions for pygame
+            if(draw):
+            
+                scaleFactor = 3
+                
+                window_height = height * scaleFactor
+                window_width = width * scaleFactor
+                
+                clock_tick_rate = 20
+                
+                size = (window_width, window_height)
+                screen = pygame.display.set_mode(size)
+                
+                pygame.display.set_caption("Best Fit Line")
+                
+                dead = False
+                
+                # Set pygame background
+                clock = pygame.time.Clock()
+                background_image = pygame.image.load(filename).convert()
+                background_image = pygame.transform.scale(background_image, (window_width, window_height))
+                
+                while(dead == False):
+                    
+                    for event in pygame.event.get():
+                        
+                        if event.type == pygame.QUIT:
+                            
+                            dead = True
+                
+                    screen.blit(background_image, [0, 0])
+                    
+                    # Check mode of operation
+                    if lineFitAlg == "best" or lineFitAlg == "overlap":
+                    
+                        for segment in segments:
+                            
+                            pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor * 2)
+                        
+                    if lineFitAlg == "strict" or lineFitAlg == "overlap":
+                    
+                        for strictSegment in strictSegments:
+                            
+                            pygame.draw.lines(screen, (255, 255, 0), False, [(strictSegment[0][1] * scaleFactor, strictSegment[0][0] * scaleFactor), (strictSegment[1][1] * scaleFactor, strictSegment[1][0] * scaleFactor)], scaleFactor * 2)
+                    
+                    # Update and display
+                    pygame.display.update()
+                    pygame.display.flip()
+                    clock.tick(clock_tick_rate)
             
     else:
     
