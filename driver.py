@@ -15,6 +15,7 @@ from sklearn.cluster import KMeans
 from skimage.io import imread
 from statistics import mean
 import colorsys, matplotlib.pyplot, numpy, os, pygame, sys
+import statistics
 
 INPUTFOLDERNAME = "raw_images"
 INTERMEDFOLDERNAME = "processed_images"
@@ -379,6 +380,87 @@ class Line(object):
         print("Strict Fit Range : ", minDist[2], subDist)
         return [minDist[0], minDist[1]]
     
+    #strict fitting using MSE
+    def getStrictFit2(self, points, rows, height, width):
+        
+        # Calculate the width of each strip
+        stripWidth = round(width / rows)
+        
+        # Initialize the minimum distance as infinity
+        minSS = [(-1, -1), (-1, -1), sys.maxsize]
+        
+        subPoints = []
+        
+        # Group the points into their respective strips
+        for i in range(rows):
+            
+            subPoints.append(self.getSubPoints(points, i * stripWidth, (i + 1) * stripWidth))
+        
+        for i in range(stripWidth):
+            
+            for j in range(stripWidth):
+                
+                # Initialize sum variables
+                totalDist = 0
+                pointCount = 0
+                
+                firstLineY = i
+                lastLineY = j + (stripWidth * (rows - 1))
+                
+                lineGap = (lastLineY - firstLineY) / (rows - 1)
+                
+                linesY = []
+                
+                for k in range (rows):
+                    
+                    linesY.append(firstLineY + (k * lineGap))
+                
+                for k in range (rows):
+                    
+                    subDist = 0
+                    subCount = 0
+                    
+                    for subpoint in subPoints[k]:
+                        #count sum of square
+                        ss = (subpoint[1]-linesY[k])**2
+                        
+                        subDist += ss
+                        subCount += 1
+                        
+                        totalDist += ss
+                        pointCount += 1
+                
+                # Check and update minimum distance if necessary
+                if totalDist < minSS[2]:
+                    
+                    # Update Y coordinates of first line, last line and sum of all distances between all the points and the line segment
+                    minSS = [firstLineY, lastLineY, totalDist]
+                    
+            bandwidth = (lastLineY-firstLineY)/(rows-1)
+            strictLinesY = [] 
+            
+            #put together all strict lines
+            totalDistArr = []
+            devArr = []
+            totalDev = 0
+            for row in range(rows):
+                
+                strictLine = firstLineY+bandwidth*row
+                strictLinesY.append(strictLine)
+                distArr = []
+                for subpoint in subPoints[row]:                    
+                    dist = abs(subpoint[1]-strictLine)
+                    distArr.append(dist)
+                    totalDistArr.append(dist)
+                 
+                devArr.append(statistics.stdev(distArr))
+               
+            totalDev = statistics.stdev(totalDistArr)
+        
+        # index 2 : MSE ; index 3 : sample standard deviation of the distances in each segment; index 4 sample standard deviation of the distances in all segments;
+        return [minSS[0], minSS[1],minSS[2]/pointCount,devArr,totalDev] 
+    
+    
     # Gets the coordinates of all the white pixels in the image
     def getPoints(self, img):
         
@@ -684,12 +766,12 @@ def main():
     
     # Specify mode of operation and algorithm here
     batchMode = False
-    lineFitAlg = "best"
+    lineFitAlg = "strict"
     draw = False
     
     if (not batchMode):
         
-        for x in range(41):
+        for x in range(40):
             
             print()
         
@@ -730,9 +812,12 @@ def main():
                 # Execute strict fit algorithm
                 strictSegments = []
                 
-                strictBounds = line.getStrictFit(points, ROWS, height, width)
+                #strictBounds = line.getStrictFit(points, ROWS, height, width)
+                strictBounds = line.getStrictFit2(points, ROWS, height, width) #By minimize MSE
                 lineGap = (strictBounds[1] - strictBounds[0]) / (ROWS - 1)
-                
+                print("mean square error for image %03d is %f; standard deviation is %f" %(x,strictBounds[2],strictBounds[4]))
+                #print out deviation for each segment
+                #print(*strictBounds[3])
                 for i in range(ROWS):
                     
                     strictSegments.append([(0, strictBounds[0] + (i * lineGap)), (height, strictBounds[0] + (i * lineGap))])
