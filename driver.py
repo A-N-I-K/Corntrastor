@@ -668,7 +668,7 @@ def bulkFilter(imageList):
     for i, img in enumerate(imageList):
         
         # Filter clusters by pixel density and dot representation
-        filteredImg = filterClusters(img, 10)
+        filteredImg = filterClusters(img, 5)
         
         # Update filtered image list
         filteredImageList.append(filteredImg)
@@ -689,10 +689,11 @@ def main():
     
     if (not batchMode):
         
-        for x in range(41):
+        for x in range(67):
             
             print()
-        
+            
+            # x = 38
             filename = "filtered_images/%03d.png" % x
             
             line = Line()
