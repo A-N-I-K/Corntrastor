@@ -447,32 +447,116 @@ class Line(object):
                     # Update Y coordinates of first line, last line and sum of all distances between all the points and the line segment
                     minSS = [firstLineY, lastLineY, totalDist]
                     
-            lineGap = (lastLineY - firstLineY) / (rows - 1)
-            strictLinesY = [] 
+        lineGap = (lastLineY - firstLineY) / (rows - 1)
+        strictLinesY = [] 
             
-            # Append all strict lines
-            totalDistArr = []
-            devArr = []
-            totalDev = 0
+        # Append all strict lines
+        totalDistArr = []
+        devArr = []
+        totalDev = 0
+        
+        for row in range(rows):
+                
+            strictLine = firstLineY + lineGap * row
+            strictLinesY.append(strictLine)
+            distArr = []
             
-            for row in range(rows):
-                
-                strictLine = firstLineY + lineGap * row
-                strictLinesY.append(strictLine)
-                distArr = []
-                
-                for subpoint in subPoints[row]:               
-                         
-                    dist = abs(subpoint[1] - strictLine)
-                    distArr.append(dist)
-                    totalDistArr.append(dist)
+            for subpoint in subPoints[row]:        
+                               
+                dist = abs(subpoint[1] - strictLine)
+                distArr.append(dist)
+                totalDistArr.append(dist)
                  
-                devArr.append(statistics.stdev(distArr))
-               
-            totalDev = statistics.stdev(totalDistArr)
+            devArr.append(statistics.stdev(distArr))
+                        
+        totalDev = statistics.stdev(totalDistArr)   
         
         # Index 2 : MSE ; Index 3 : sample standard deviation of the distances in each segment; Index 4 sample standard deviation of the distances in all segments;
         return [minSS[0], minSS[1], minSS[2] / pointCount, devArr, totalDev] 
+    
+    # Strict fitting model using MSE Not counting for SD
+    def getStrictFit3(self, points, rows, width):        
+        
+        # Calculate the width of each strip
+        stripWidth = round(width / rows)
+        
+        # Initialize the minimum distance as infinity
+        minSS = [(-1, -1), (-1, -1), sys.maxsize]
+        
+        subPoints = []
+        
+        # Group the points into their respective strips
+        for i in range(rows):
+            
+            subPoints.append(self.getSubPoints(points, (stripWidth * (i + self.sideTrim)), (stripWidth * (i + 1 - self.sideTrim))))
+        
+        for i in range(stripWidth):
+            
+            for j in range(stripWidth):
+                
+                # Initialize sum variables
+                totalDist = 0
+                pointCount = 0
+                firstLineY = i
+                lastLineY = j + (stripWidth * (rows - 1))
+                
+                lineGap = (lastLineY - firstLineY) / (rows - 1)
+                
+                linesY = []
+                
+                for k in range (rows):
+                    
+                    linesY.append(firstLineY + (k * lineGap))
+                
+                for k in range (rows):
+                    
+                    subDist = 0
+                    subCount = 0
+                    
+                    for subpoint in subPoints[k]:
+                        
+                        # Count sum of square
+                        ss = (subpoint[1] - linesY[k]) ** 2
+                        
+                        subDist += ss
+                        subCount += 1
+                        
+                        totalDist += ss
+                        pointCount += 1
+                
+                # Check and update minimum distance if necessary
+                if totalDist < minSS[2]:
+                    
+                    # Update Y coordinates of first line, last line and sum of all distances between all the points and the line segment
+                    minSS = [firstLineY, lastLineY, totalDist]
+
+        lineGap = (lastLineY - firstLineY) / (rows - 1)
+        #strictLinesY = [] 
+            
+        # Append all strict lines
+        MSEArr = []
+        totalPoints = 0
+        
+        for row in range(rows):       
+            strictLine = firstLineY + lineGap * row
+            #strictLinesY.append(strictLine)
+            SS_eachSeg = 0
+            
+            #print(subPoints[row])
+            #print("length of subpoints is %d",len(subPoints[row]))
+            for subpoint in subPoints[row]:                  
+                SS = (subpoint[1] - strictLine)**2
+                SS_eachSeg = SS_eachSeg+SS
+            numOfsub = len(subPoints[row])    
+            if(numOfsub == 0):
+                MSEArr.append(0)
+            else:
+                MSEArr.append(SS_eachSeg/len(subPoints[row]))
+            totalPoints = totalPoints+len(subPoints[row])
+               
+       # print(pointCount)
+        # Index 2 : MSE ; Index 3 : sample standard deviation of the distances in each segment; Index 4 sample standard deviation of the distances in all segments;
+        return [minSS[0], minSS[1], minSS[2] / totalPoints, MSEArr] 
     
     # Gets the coordinates of all the white pixels in the image
     def getPoints(self, img):
