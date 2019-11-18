@@ -453,7 +453,7 @@ class Line(object):
         # Append all strict lines
         totalDistArr = []
         devArr = []
-        totalDev = 0
+        # totalDev = 0
         
         for row in range(rows):
                 
@@ -531,7 +531,7 @@ class Line(object):
                     minSS = [firstLineY, lastLineY, totalDist]
 
         lineGap = (lastLineY - firstLineY) / (rows - 1)
-        #strictLinesY = [] 
+        # strictLinesY = [] 
             
         # Append all strict lines
         MSEArr = []
@@ -539,22 +539,22 @@ class Line(object):
         
         for row in range(rows):       
             strictLine = firstLineY + lineGap * row
-            #strictLinesY.append(strictLine)
+            # strictLinesY.append(strictLine)
             SS_eachSeg = 0
             
-            #print(subPoints[row])
-            #print("length of subpoints is %d",len(subPoints[row]))
+            # print(subPoints[row])
+            # print("length of subpoints is %d",len(subPoints[row]))
             for subpoint in subPoints[row]:                  
-                SS = (subpoint[1] - strictLine)**2
-                SS_eachSeg = SS_eachSeg+SS
+                SS = (subpoint[1] - strictLine) ** 2
+                SS_eachSeg = SS_eachSeg + SS
             numOfsub = len(subPoints[row])    
             if(numOfsub == 0):
                 MSEArr.append(0)
             else:
-                MSEArr.append(SS_eachSeg/len(subPoints[row]))
-            totalPoints = totalPoints+len(subPoints[row])
+                MSEArr.append(SS_eachSeg / len(subPoints[row]))
+            totalPoints = totalPoints + len(subPoints[row])
                
-       # print(pointCount)
+        # print(pointCount)
         # Index 2 : MSE ; Index 3 : sample standard deviation of the distances in each segment; Index 4 sample standard deviation of the distances in all segments;
         return [minSS[0], minSS[1], minSS[2] / totalPoints, MSEArr] 
     
@@ -885,7 +885,7 @@ def main():
             
             for x in range(1):
                 
-                x = 3
+                x = 2
                 filename = "filtered_images/%03d.png" % x
                 
                 line = Line(sideTrim)
