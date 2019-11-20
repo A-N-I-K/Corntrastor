@@ -16,6 +16,9 @@ import matplotlib.pyplot as plt
 #lower the threthold for cluter fileter filterClusters(img, 3) 
 
 def imgProcess(toBulkProcess):
+    
+    if(toBulkProcess == False):
+        return
 
     handlerProcess = driver.File(driver.INPUTFOLDERNAME, driver.INTERMEDFOLDERNAME)
         
@@ -52,6 +55,8 @@ def writeTofile(array,csvFileName,toCSV):
     csvFile.close()
     
 def drawImg2(points, firstLine,row,bandwidth,drawable):#based on strict fitting
+    if(drawable == False):
+        return
     np_points = np.array(points)  # convert the list to nparray
     plt.scatter(np_points[:, 1], np_points[:, 0])  # x y
     index = 0
@@ -84,7 +89,7 @@ def main2():
     MSEArr = []
     MSE = []
     
-    n = file_count #can be set to different value for the loop to iterate
+    n = file_count #can be set to a different value for iterating
     
     for i in range(n):
         
@@ -122,7 +127,8 @@ def main2():
         MSEArr.append(strictBounds[3])
         MSE.append([strictBounds[2]])
     
-    
+    #print(MSE)
+    #print(MSEArr)
     writeTofile(MSEArr,"mse_arr.csv",toCSV)
     writeTofile(MSE,"totalMSE.csv",toCSV)
     
