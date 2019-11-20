@@ -10,9 +10,12 @@ import os
 import pandas as pd
 from skimage.io import imread
 import csv
+import numpy as np
+import matplotlib.pyplot as plt
+
 #lower the threthold for cluter fileter filterClusters(img, 3) 
 
-def imgProcess():
+def imgProcess(toBulkProcess):
 
     handlerProcess = driver.File(driver.INPUTFOLDERNAME, driver.INTERMEDFOLDERNAME)
         
@@ -48,9 +51,26 @@ def writeTofile(array,csvFileName,toCSV):
         writer.writerows(array)
     csvFile.close()
     
+def drawImg2(points, firstLine,row,bandwidth,drawable):#based on strict fitting
+    np_points = np.array(points)  # convert the list to nparray
+    plt.scatter(np_points[:, 1], np_points[:, 0])  # x y
+    index = 0
+    while(index<row):
+        line = index*bandwidth+firstLine
+        plt.axvline(x=line,color='red',linewidth=2)
+        plt.show()
+        index = index+1    
+    
 def main2():
-    toCSV = True
-    #imgProcess()
+    
+    toCSV = False #convert to csv
+    
+    drawable = False # draw the picture
+    
+    toBulkProcess = False # bulk processing the picture 
+    
+    imgProcess(toBulkProcess)
+    
     path,dirs,files = next(os.walk("raw_images"))
     # number of files in folder
     file_count = len(files)
@@ -64,7 +84,9 @@ def main2():
     MSEArr = []
     MSE = []
     
-    for i in range(file_count):
+    n = file_count #can be set to different value for the loop to iterate
+    
+    for i in range(n):
         
         filename = "filtered_images/%03d.png" % i
         
@@ -86,17 +108,17 @@ def main2():
         #height = len(img)
          
         width = len(img[0])
-         
-                
-        #stripWidth = round(width / rowNumList[i])
                 
         points = line.getPoints(img)
-        #print(rowNumList[i])
-        # strictBounds = line.getStrictFit(points, rows, height, width)
+
         strictBounds = line.getStrictFit3(points, rowNumList[i], width)  # MSE Minimization Variation
         
-        #print(strictBounds[2])
-        #print(strictBounds[3])
+        firstLine = strictBounds[0]
+        lastLine = strictBounds[1]
+
+        bandwidth = (lastLine - firstLine)/(rowNumList[i]-1)
+        drawImg2(points, firstLine,rowNumList[i],bandwidth,drawable)
+        
         MSEArr.append(strictBounds[3])
         MSE.append([strictBounds[2]])
     

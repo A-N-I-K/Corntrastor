@@ -16,7 +16,7 @@ from skimage.io import imread
 from statistics import mean
 import colorsys, matplotlib.pyplot, numpy, os, pygame, sys
 import statistics
-from test.test_winconsoleio import ConIO
+#from test.test_winconsoleio import ConIO
 
 INPUTFOLDERNAME = "raw_images"
 INTERMEDFOLDERNAME = "processed_images"
@@ -530,7 +530,9 @@ class Line(object):
                     # Update Y coordinates of first line, last line and sum of all distances between all the points and the line segment
                     minSS = [firstLineY, lastLineY, totalDist]
 
-        lineGap = (lastLineY - firstLineY) / (rows - 1)
+        firstLineY = minSS[0]
+        lastLineY = minSS[1]
+        lineGap = (lastLineY- firstLineY) / (rows - 1)
         # strictLinesY = [] 
             
         # Append all strict lines
