@@ -16,7 +16,7 @@ from skimage.io import imread
 from statistics import mean
 import colorsys, matplotlib.pyplot, numpy, os, pygame, sys
 import statistics
-#from test.test_winconsoleio import ConIO
+# from test.test_winconsoleio import ConIO
 
 INPUTFOLDERNAME = "raw_images"
 INTERMEDFOLDERNAME = "processed_images"
@@ -532,7 +532,7 @@ class Line(object):
 
         firstLineY = minSS[0]
         lastLineY = minSS[1]
-        lineGap = (lastLineY- firstLineY) / (rows - 1)
+        lineGap = (lastLineY - firstLineY) / (rows - 1)
         # strictLinesY = [] 
             
         # Append all strict lines
@@ -849,7 +849,7 @@ def bulkFilter(imageList):
     for i, img in enumerate(imageList):
         
         # Filter clusters by pixel density and dot representation
-        filteredImg = filterClusters(img, 10)
+        filteredImg = filterClusters(img, 0)
         
         # Update filtered image list
         filteredImageList.append(filteredImg)
@@ -867,7 +867,7 @@ def main():
     mode = "linefitting"
     
     # Specify the line fitting algorithm to be used; best, scrit or overlap
-    lineFitAlg = "strict"
+    lineFitAlg = "best"
     
     # Enable or disable on-screen display; DO NOT enable in batch mode
     draw = False
@@ -887,7 +887,7 @@ def main():
             
             for x in range(1):
                 
-                x = 2
+                x = 3
                 filename = "filtered_images/%03d.png" % x
                 
                 line = Line(sideTrim)
