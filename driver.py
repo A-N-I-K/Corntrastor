@@ -560,6 +560,40 @@ class Line(object):
         # Index 2 : MSE ; Index 3 : sample standard deviation of the distances in each segment; Index 4 sample standard deviation of the distances in all segments;
         return [minSS[0], minSS[1], minSS[2] / totalPoints, MSEArr] 
     
+    #fit vertical lines but not with strict intervals
+    def getVerticalFit(self, points, rows, width):
+            # Calculate the width of each strip
+        stripWidth = round(width / rows)
+        
+        subPoints = []
+        
+        # Group the points into their respective strips
+        for i in range(rows):
+            
+            subPoints.append(self.getSubPoints(points, (stripWidth * (i + self.sideTrim)), (stripWidth * (i + 1 - self.sideTrim))))
+            
+        verticalLines = []
+        totalSS = 0
+        MSEArr = []
+        totalPointsNum = 0
+        
+        for subPoint in subPoints:
+            #If the fit equation is y = a*x + b, you can find the intercept b that best fits you data, given a fixed slope a = A, as: 
+            #b = np.mean(y - A*x) #In this case fit x = b, A = 0
+            intercept = numpy.mean(numpy.array(subPoint)[:,1])
+            verticalLines.append(intercept)
+            segSS = 0
+            for point in subPoint:
+                pointSS = (point[1]-intercept)**2
+                totalSS += pointSS
+                segSS += pointSS
+             
+            MSEArr.append(segSS/len(subPoint))
+            totalPointsNum += len(subPoint)
+        
+        #index 0 : intecept of all fitting lines, index 1 : totalMSE; index 2: array of mse in each segment.
+        return [verticalLines,totalSS/totalPointsNum,MSEArr]     
+    
     # Gets the coordinates of all the white pixels in the image
     def getPoints(self, img):
         
