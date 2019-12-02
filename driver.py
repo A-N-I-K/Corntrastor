@@ -4,18 +4,14 @@ Created on Sep 18, 2019
 @author: Anik
 '''
 
-from matplotlib import style
 from numpy import ones, vstack
 from numpy.linalg import lstsq, norm
 from os import listdir
 from os.path import isfile, join
 from PIL import Image, ImageEnhance
-from skimage.color import rgb2gray
 from skimage.io import imread
 from statistics import mean
-import colorsys, matplotlib.pyplot, numpy, os, pygame, sys
-import statistics
-# from test.test_winconsoleio import ConIO
+import colorsys, matplotlib.pyplot, numpy, os, pygame, statistics, sys
 
 INPUTFOLDERNAME = "raw_images"
 INTERMEDFOLDERNAME = "processed_images"
@@ -1005,26 +1001,26 @@ def main():
                         
                         strictSegments.append([(0, strictBounds[0] + (i * lineGap)), (height, strictBounds[0] + (i * lineGap))])
                         
-                if lineFitAlg == "plotlib":
-                
-                    # Execute plotlib
-                    style.use('fivethirtyeight')
-                    
-                    # First strip for plot demonstration
-                    subPoints = line.getSubPoints(points, 0, stripWidth)
-                    
-                    x, y = line.getXY(subPoints)
-                    
-                    xs = numpy.array(x, dtype=numpy.float64)
-                    ys = numpy.array(y, dtype=numpy.float64)
-                    
-                    m, b = line.getSlopeAndIntercept(xs, ys)
-                    
-                    regLine = [(m * i) + b for i in xs]
-                    
-                    matplotlib.pyplot.scatter(xs, ys)
-                    matplotlib.pyplot.plot(xs, regLine)
-                    matplotlib.pyplot.show()
+#                 if lineFitAlg == "plotlib":
+#                 
+#                     # Execute plotlib
+#                     style.use('fivethirtyeight')
+#                     
+#                     # First strip for plot demonstration
+#                     subPoints = line.getSubPoints(points, 0, stripWidth)
+#                     
+#                     x, y = line.getXY(subPoints)
+#                     
+#                     xs = numpy.array(x, dtype=numpy.float64)
+#                     ys = numpy.array(y, dtype=numpy.float64)
+#                     
+#                     m, b = line.getSlopeAndIntercept(xs, ys)
+#                     
+#                     regLine = [(m * i) + b for i in xs]
+#                     
+#                     matplotlib.pyplot.scatter(xs, ys)
+#                     matplotlib.pyplot.plot(xs, regLine)
+#                     matplotlib.pyplot.show()
                 
                 # Definitions for pygame
                 if(draw):
