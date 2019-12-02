@@ -894,14 +894,14 @@ def bulkProcess(imageList):
 
 
 # Filters clusters in all images in an image list
-def bulkFilter(imageList):
+def bulkFilter(imageList, thresh):
     
     filteredImageList = []
     
     for i, img in enumerate(imageList):
         
         # Filter clusters by pixel density and dot representation
-        filteredImg = filterClusters(img, 0)
+        filteredImg = filterClusters(img, thresh)
         
         # Update filtered image list
         filteredImageList.append(filteredImg)
@@ -942,7 +942,7 @@ def singleImageFullProcess(imgName):
     imageList = handlerFilter.getSKImages()
     
     # Cluster filter image
-    filteredImageList = bulkFilter(imageList)
+    filteredImageList = bulkFilter(imageList, 1)
     
     # Save image
     handlerFilter.setSKImages(filteredImageList)
@@ -954,44 +954,58 @@ def singleImageFullProcess(imgName):
     # Specify row count estimation and line fitting parameters
     lineFitAlg = "overlap"
     sideTrim = 0.10
-    draw = False
+    draw = True
     
     for x in range(len(imageList)):
         
         # Set current minimum average deviation/MSE to infinity
         minMSEBF = minMSESF = sys.maxsize
+        
+        # Initialize row count
         estRowBF = estRowSF = -1
         
+        fileName = "filtered_images/%03d.png" % x
+        
+        img = None
+        
+        # Open a single image
+        try:
+            
+            img = imread(fileName)
+            
+        except FileNotFoundError:
+            
+            print ("Invalid fileName")
+        
+        # Image properties
+        height = len(img)
+        width = len(img[0])
+        
+        line = Line(sideTrim)
+        points = line.getPoints(img)
+        
+        # Flags to continue algorithm until completed
+        continueBF = True
+        continueSF = True
+        
+        # Best fit tracker variables
+        estSegmentsBF = []
+        
+        # Strict fit tracker variables
+        estStrictBounds = []
+        estLineGap = -1
+        
+        print("Estimating row count for %03d.png using best fit algorithm.." % x)
+    
         for r in range(MAXROWS):
             
             # Number of rows for which the deviation/MSE is to be tested
-            rows = r + 1
+            rows = r + 2
             
-            fileName = "filtered_images/%03d.png" % x
-            
-            line = Line(sideTrim)
-            img = None
-            
-            # Open a single image
-            try:
-                
-                img = imread(fileName)
-                
-            except FileNotFoundError:
-                
-                print ("Invalid fileName")
-            
-            # Image properties
-            height = len(img)
-            width = len(img[0])
-            
+            # Width of each strip
             stripWidth = round(width / rows)
             
-            points = line.getPoints(img)
-            
-            if lineFitAlg == "overlap":
-                                
-                print("Estimating row count for %03d.png using best fit algorithm.." % x)
+            if lineFitAlg == "overlap" and continueBF:
                 
                 # Execute best fit algorithm
                 segmentsBF = []
@@ -1001,36 +1015,50 @@ def singleImageFullProcess(imgName):
                     
                     subPoints = line.getSubPoints(points, (stripWidth * (i + sideTrim)), (stripWidth * (i + 1 - sideTrim)))
                     
-                    # Get the segment using the best fitting model AND the deviation/MSE
-                    segment = line.getBestFit(subPoints, i * stripWidth, (i + 1) * stripWidth, height)
+                    # Get the segmentBF using the best fitting model AND the deviation/MSE
+                    segmentBF = line.getBestFit(subPoints, i * stripWidth, (i + 1) * stripWidth, height)
                     
-                    # Append ONLY the line segment to the list of line segments
-                    segmentsBF.append((segment[0], segment[1]))
+                    # Append ONLY the line segmentBF to the list of line segments
+                    segmentsBF.append((segmentBF[0], segmentBF[1]))
                     
-                    # Print current deviation/MSE of the line segment
-                    # print(segment[2], " ", end='')
+                    # Print current deviation/MSE of the line segmentBF
+                    # print(segmentBF[2], " ", end='')
                     
                     # Update deviation/MSE
-                    totalMSEBF += segment[2]
+                    totalMSEBF += segmentBF[2]
                 
                 # Print average deviation/MSE
                 avgMSEBF = totalMSEBF / rows
-                print("MSE for %02d row(s) using best fit algorithm:\t" % rows, avgMSEBF)
+                print("MSE for %02d row(s) using best fit algorithm\t: " % rows, avgMSEBF)
                 
                 # Update minimum average deviation/MSE
                 if avgMSEBF < minMSEBF:
+                    
                     minMSEBF = avgMSEBF
                     estRowBF = rows
+                    
+                    estSegmentsBF = segmentsBF
                 
                 if avgMSEBF > minMSEBF:
-                    break
                     
-            if lineFitAlg == "overlap" and rows > 1:
-                
-                print("Estimating row count for %03d.png using strict fit algorithm.." % x)
+                    segmentsBF = estSegmentsBF
+                    
+                    continueBF = False
+                    break
+        
+        print("Estimating row count for %03d.png using strict fit algorithm.." % x)
+        
+        for r in range(MAXROWS):
+            
+            # Number of rows for which the deviation/MSE is to be tested
+            rows = r + 2
+            
+            # Width of each strip
+            stripWidth = round(width / rows)
+                    
+            if lineFitAlg == "overlap" and continueSF:
                 
                 # Execute strict fit algorithm
-                segmentsSF = []
                 
                 # strictBounds = line.getStrictFit(points, rows, height, width)
                 strictBounds = line.getStrictFit2(points, rows, width)  # MSE Minimization Variation
@@ -1044,98 +1072,96 @@ def singleImageFullProcess(imgName):
                 
                 # Update minimum average deviation/MSE
                 if strictBounds[4] < minMSESF:
+                    
                     minMSESF = strictBounds[4]
                     estRowSF = rows
+                    
+                    estStrictBounds = strictBounds
+                    estLineGap = lineGap
                 
                 if strictBounds[4] > minMSESF:
+                    
+                    strictBounds = estStrictBounds
+                    lineGap = estLineGap
+                    
+                    continueSF = False
                     break
                 
-                # print out deviation for each segment
+                # print out deviation for each segmentBF
                 # print(*strictBounds[3])
                 
-                for i in range(rows):
-                    
-                    segmentsSF.append([(0, strictBounds[0] + (i * lineGap)), (height, strictBounds[0] + (i * lineGap))])
-                    
-#                 if lineFitAlg == "plotlib":
-#                 
-#                     # Execute plotlib
-#                     style.use('fivethirtyeight')
-#                     
-#                     # First strip for plot demonstration
-#                     subPoints = line.getSubPoints(points, 0, stripWidth)
-#                     
-#                     x, y = line.getXY(subPoints)
-#                     
-#                     xs = numpy.array(x, dtype=numpy.float64)
-#                     ys = numpy.array(y, dtype=numpy.float64)
-#                     
-#                     m, b = line.getSlopeAndIntercept(xs, ys)
-#                     
-#                     regLine = [(m * i) + b for i in xs]
-#                     
-#                     matplotlib.pyplot.scatter(xs, ys)
-#                     matplotlib.pyplot.plot(xs, regLine)
-#                     matplotlib.pyplot.show()
-            
-            # Definitions for pygame
-            if(draw):
-            
-                scaleFactor = 2
-                
-                window_height = height * scaleFactor
-                window_width = width * scaleFactor
-                
-                clock_tick_rate = 20
-                
-                size = (window_width, window_height)
-                screen = pygame.display.set_mode(size)
-                
-                pygame.display.set_caption("Best Fit Line")
-                
-                dead = False
-                
-                # Set pygame background
-                clock = pygame.time.Clock()
-                background_image = pygame.image.load(fileName).convert()
-                background_image = pygame.transform.scale(background_image, (window_width, window_height))
-                
-                while(dead == False):
-                    
-                    for event in pygame.event.get():
-                        
-                        if event.type == pygame.QUIT:
-                            
-                            dead = True
-                
-                    screen.blit(background_image, [0, 0])
-                    
-                    # Check mode of operation
-                    if lineFitAlg == "best" or lineFitAlg == "overlap":
-                    
-                        for segment in segmentsBF:
-                            
-                            pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor * 2)
-                        
-                    if lineFitAlg == "strict" or lineFitAlg == "overlap":
-                    
-                        for strictSegment in segmentsSF:
-                            
-                            pygame.draw.lines(screen, (255, 255, 0), False, [(strictSegment[0][1] * scaleFactor, strictSegment[0][0] * scaleFactor), (strictSegment[1][1] * scaleFactor, strictSegment[1][0] * scaleFactor)], scaleFactor * 2)
-                    
-                    # Update and display
-                    pygame.display.update()
-                    pygame.display.flip()
-                    clock.tick(clock_tick_rate)
-                    
-        else:
-            
-            continue
+        print("Estimated row(s) using best fitting algorithm\t: ", estRowBF)
+        print("Estimated row(s) using strict fitting algorithm\t: ", estRowSF)
         
-        break
+        if (estRowBF > estRowSF):
+            
+            print("Lodging detected")
+            
+        if (estRowBF < estRowSF):
+            
+            print("High lodging detected")
+                
+        # Definitions for pygame
+        if(draw):
+            
+            segmentsSF = []
+            
+            for i in range(estRowSF):
+                
+                segmentsSF.append([(0, strictBounds[0] + (i * lineGap)), (height, strictBounds[0] + (i * lineGap))])
+        
+            scaleFactor = 2
+            
+            window_height = height * scaleFactor
+            window_width = width * scaleFactor
+            
+            clock_tick_rate = 20
+            
+            size = (window_width, window_height)
+            screen = pygame.display.set_mode(size)
+            
+            pygame.display.set_caption("Best Fit and Strict Fit Simulation")
+            
+            dead = False
+            
+            # Set pygame background
+            clock = pygame.time.Clock()
+            background_image = pygame.image.load(fileName).convert()
+            background_image = pygame.transform.scale(background_image, (window_width, window_height))
+            
+            while(dead == False):
+                
+                for event in pygame.event.get():
                     
-    print("Estimated row(s) using best fitting algorithm:\t", estRowBF)
-    print("Estimated row(s) using strict fitting algorithm:\t", estRowSF)
+                    if event.type == pygame.QUIT:
+                        
+                        dead = True
+            
+                screen.blit(background_image, [0, 0])
+                
+                # Check mode of operation
+                if lineFitAlg == "overlap":
+                
+                    for segmentBF in segmentsBF:
+                        
+                        pygame.draw.lines(screen, (255, 0, 0), False, [(segmentBF[0][1] * scaleFactor, segmentBF[0][0] * scaleFactor), (segmentBF[1][1] * scaleFactor, segmentBF[1][0] * scaleFactor)], scaleFactor * 2)
+                    
+                if lineFitAlg == "overlap":
+                
+                    for segmentSF in segmentsSF:
+                        
+                        pygame.draw.lines(screen, (255, 255, 0), False, [(segmentSF[0][1] * scaleFactor, segmentSF[0][0] * scaleFactor), (segmentSF[1][1] * scaleFactor, segmentSF[1][0] * scaleFactor)], scaleFactor * 2)
+                
+                # Update and display
+                pygame.display.update()
+                pygame.display.flip()
+                clock.tick(clock_tick_rate)
+                        
+            # else:
+                
+            #    continue
+            
+            # break
     
     print("Program successfully terminated")
 
@@ -1152,7 +1178,7 @@ def main():
     # Enable or disable on-screen display; DO NOT enable in batch mode
     draw = False
     
-    singleImageFullProcess("019_101.png")
+    singleImageFullProcess("019_105.png")
     
     sideTrim = 0.10
     
@@ -1356,12 +1382,12 @@ def main():
         imageList = handlerFilter.getSKImages()
         
         # Cluster filter images
-        filteredImageList = bulkFilter(imageList)
+        filteredImageList = bulkFilter(imageList, 0)
         
         # Save images
         handlerFilter.setSKImages(filteredImageList)
     
-    print("Program successfully terminated")
+    # print("Program successfully terminated")
 
 
 if __name__ == '__main__':
