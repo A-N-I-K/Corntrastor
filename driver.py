@@ -11,7 +11,7 @@ from os.path import isfile, join
 from PIL import Image, ImageEnhance
 from skimage.io import imread
 from statistics import mean
-import colorsys, matplotlib.pyplot, numpy, os, pygame, statistics, sys
+import colorsys, matplotlib.pyplot, numpy, os, pygame, shutil, statistics, sys
 
 INPUTFOLDERNAME = "raw_images"
 INTERMEDFOLDERNAME = "processed_images"
@@ -59,6 +59,31 @@ class File(object):
         
         self.inF = inF
         self.outF = outF
+        
+        if os.path.isdir(self.outF):
+            
+            self.clearFolder(self.outF)
+            
+    # Deletes all files in a folder
+    def clearFolder(self, folderName):
+        
+        for filename in os.listdir(folderName):
+            
+            file_path = os.path.join(folderName, filename)
+            
+            try:
+                
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    
+                    os.unlink(file_path)
+                    
+                elif os.path.isdir(file_path):
+                    
+                    shutil.rmtree(file_path)
+                    
+            except Exception as e:
+                
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
     
     # Returns a list of filenames in the Input Folder
     def getFilenames(self):
@@ -69,15 +94,15 @@ class File(object):
             
         return [f for f in listdir(self.inF) if isfile(join(self.inF, f))]
     
-    # Returns a list of image objects in the input folder
+    # Returns a list of image objects from the input folder
     def getImages(self):
         
-        filenames = self.getFilenames()
+        fileNames = self.getFileNames()
         imageList = []
         
-        for file in filenames:
+        for file in fileNames:
             
-            imageList.append(self.openImg(self.inF + "/" + file))
+            imageList.append(self.getImg(file))
         
         return imageList
 
@@ -89,7 +114,7 @@ class File(object):
         
         for file in filenames:
             
-            imageList.append(self.openSKImg(self.inF + "/" + file))
+            imageList.append(self.getSKImg(file))
         
         return imageList
     
@@ -116,13 +141,13 @@ class File(object):
             matplotlib.pyplot.imsave((self.outF + "/{:03d}.png".format(i)), img, cmap='gray')
     
     # Returns a single image object
-    def openImg(self, fileName):
+    def getImg(self, fileName):
         
         img = None
         
         try:
             
-            img = Image.open(fileName)
+            img = Image.open(self.inF + "/" + fileName)
             
         except FileNotFoundError:
             
@@ -131,13 +156,13 @@ class File(object):
         return img
     
     # Returns a single sci-kit image object
-    def openSKImg(self, fileName):
+    def getSKImg(self, fileName):
         
         img = None
         
         try:
             
-            img = imread(fileName)
+            img = imread(self.inF + "/" + fileName)
             
         except FileNotFoundError:
             
@@ -887,17 +912,247 @@ def bulkFilter(imageList):
     return filteredImageList
 
 
+def singleImageFullProcess(imgName):
+    
+    print("Starting image processing..")
+    
+    # Initialize process handler
+    handlerProcess = File(INPUTFOLDERNAME, INTERMEDFOLDERNAME)
+    
+    # Initialize an empty image list
+    imageList = []
+    
+    # Get image
+    imageList.append(handlerProcess.getImg(imgName))
+    
+    # Process image
+    processedImageList = bulkProcess(imageList)
+    
+    # Save image
+    handlerProcess.setImages(processedImageList)
+    
+    print("All images have been processed successfully")
+    
+    print("Starting image filtering..")
+    
+    # Initialize filter handler
+    handlerFilter = File(INTERMEDFOLDERNAME, OUTPUTFOLDERNAME)
+    
+    # Get image
+    imageList = handlerFilter.getSKImages()
+    
+    # Cluster filter image
+    filteredImageList = bulkFilter(imageList)
+    
+    # Save image
+    handlerFilter.setSKImages(filteredImageList)
+    
+    print("All images have been filtered successfully")
+    
+    print("Starting row count estimation..")
+    
+    # Specify row count estimation and line fitting parameters
+    lineFitAlg = "overlap"
+    sideTrim = 0.10
+    draw = False
+    
+    for x in range(len(imageList)):
+        
+        # Set current minimum average deviation/MSE to infinity
+        minMSEBF = minMSESF = sys.maxsize
+        estRowBF = estRowSF = -1
+        
+        for r in range(MAXROWS):
+            
+            # Number of rows for which the deviation/MSE is to be tested
+            rows = r + 1
+            
+            fileName = "filtered_images/%03d.png" % x
+            
+            line = Line(sideTrim)
+            img = None
+            
+            # Open a single image
+            try:
+                
+                img = imread(fileName)
+                
+            except FileNotFoundError:
+                
+                print ("Invalid fileName")
+            
+            # Image properties
+            height = len(img)
+            width = len(img[0])
+            
+            stripWidth = round(width / rows)
+            
+            points = line.getPoints(img)
+            
+            if lineFitAlg == "overlap":
+                                
+                print("Estimating row count for %03d.png using best fit algorithm.." % x)
+                
+                # Execute best fit algorithm
+                segmentsBF = []
+                totalMSEBF = 0
+                
+                for i in range(rows):
+                    
+                    subPoints = line.getSubPoints(points, (stripWidth * (i + sideTrim)), (stripWidth * (i + 1 - sideTrim)))
+                    
+                    # Get the segment using the best fitting model AND the deviation/MSE
+                    segment = line.getBestFit(subPoints, i * stripWidth, (i + 1) * stripWidth, height)
+                    
+                    # Append ONLY the line segment to the list of line segments
+                    segmentsBF.append((segment[0], segment[1]))
+                    
+                    # Print current deviation/MSE of the line segment
+                    # print(segment[2], " ", end='')
+                    
+                    # Update deviation/MSE
+                    totalMSEBF += segment[2]
+                
+                # Print average deviation/MSE
+                avgMSEBF = totalMSEBF / rows
+                print("MSE for %02d row(s) using best fit algorithm:\t" % rows, avgMSEBF)
+                
+                # Update minimum average deviation/MSE
+                if avgMSEBF < minMSEBF:
+                    minMSEBF = avgMSEBF
+                    estRowBF = rows
+                
+                if avgMSEBF > minMSEBF:
+                    break
+                    
+            if lineFitAlg == "overlap" and rows > 1:
+                
+                print("Estimating row count for %03d.png using strict fit algorithm.." % x)
+                
+                # Execute strict fit algorithm
+                segmentsSF = []
+                
+                # strictBounds = line.getStrictFit(points, rows, height, width)
+                strictBounds = line.getStrictFit2(points, rows, width)  # MSE Minimization Variation
+                
+                lineGap = (strictBounds[1] - strictBounds[0]) / (rows - 1)
+                # print("mean square error for image %03d is %f; standard deviation is %f" % (x, strictBounds[2], strictBounds[4]))
+                
+                # Print average deviation/MSE
+                # print(strictBounds[2], strictBounds[4])
+                print("MSE for %02d row(s) using strict fit algorithm:\t: " % rows, strictBounds[4], strictBounds[2])
+                
+                # Update minimum average deviation/MSE
+                if strictBounds[4] < minMSESF:
+                    minMSESF = strictBounds[4]
+                    estRowSF = rows
+                
+                if strictBounds[4] > minMSESF:
+                    break
+                
+                # print out deviation for each segment
+                # print(*strictBounds[3])
+                
+                for i in range(rows):
+                    
+                    segmentsSF.append([(0, strictBounds[0] + (i * lineGap)), (height, strictBounds[0] + (i * lineGap))])
+                    
+#                 if lineFitAlg == "plotlib":
+#                 
+#                     # Execute plotlib
+#                     style.use('fivethirtyeight')
+#                     
+#                     # First strip for plot demonstration
+#                     subPoints = line.getSubPoints(points, 0, stripWidth)
+#                     
+#                     x, y = line.getXY(subPoints)
+#                     
+#                     xs = numpy.array(x, dtype=numpy.float64)
+#                     ys = numpy.array(y, dtype=numpy.float64)
+#                     
+#                     m, b = line.getSlopeAndIntercept(xs, ys)
+#                     
+#                     regLine = [(m * i) + b for i in xs]
+#                     
+#                     matplotlib.pyplot.scatter(xs, ys)
+#                     matplotlib.pyplot.plot(xs, regLine)
+#                     matplotlib.pyplot.show()
+            
+            # Definitions for pygame
+            if(draw):
+            
+                scaleFactor = 2
+                
+                window_height = height * scaleFactor
+                window_width = width * scaleFactor
+                
+                clock_tick_rate = 20
+                
+                size = (window_width, window_height)
+                screen = pygame.display.set_mode(size)
+                
+                pygame.display.set_caption("Best Fit Line")
+                
+                dead = False
+                
+                # Set pygame background
+                clock = pygame.time.Clock()
+                background_image = pygame.image.load(fileName).convert()
+                background_image = pygame.transform.scale(background_image, (window_width, window_height))
+                
+                while(dead == False):
+                    
+                    for event in pygame.event.get():
+                        
+                        if event.type == pygame.QUIT:
+                            
+                            dead = True
+                
+                    screen.blit(background_image, [0, 0])
+                    
+                    # Check mode of operation
+                    if lineFitAlg == "best" or lineFitAlg == "overlap":
+                    
+                        for segment in segmentsBF:
+                            
+                            pygame.draw.lines(screen, (255, 0, 0), False, [(segment[0][1] * scaleFactor, segment[0][0] * scaleFactor), (segment[1][1] * scaleFactor, segment[1][0] * scaleFactor)], scaleFactor * 2)
+                        
+                    if lineFitAlg == "strict" or lineFitAlg == "overlap":
+                    
+                        for strictSegment in segmentsSF:
+                            
+                            pygame.draw.lines(screen, (255, 255, 0), False, [(strictSegment[0][1] * scaleFactor, strictSegment[0][0] * scaleFactor), (strictSegment[1][1] * scaleFactor, strictSegment[1][0] * scaleFactor)], scaleFactor * 2)
+                    
+                    # Update and display
+                    pygame.display.update()
+                    pygame.display.flip()
+                    clock.tick(clock_tick_rate)
+                    
+        else:
+            
+            continue
+        
+        break
+                    
+    print("Estimated row(s) using best fitting algorithm:\t", estRowBF)
+    print("Estimated row(s) using strict fitting algorithm:\t", estRowSF)
+    
+    print("Program successfully terminated")
+
+
 # Main function
 def main():
     
     # Specify mode of operation and algorithm here; process, linefitting or estimate
-    mode = "linefitting"
+    mode = "x"
     
     # Specify the line fitting algorithm to be used; best, scrit or overlap
-    lineFitAlg = "best"
+    lineFitAlg = "x"
     
     # Enable or disable on-screen display; DO NOT enable in batch mode
     draw = False
+    
+    singleImageFullProcess("019_101.png")
     
     sideTrim = 0.10
     
@@ -1107,7 +1362,6 @@ def main():
         handlerFilter.setSKImages(filteredImageList)
     
     print("Program successfully terminated")
-    return
 
 
 if __name__ == '__main__':
