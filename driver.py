@@ -11,7 +11,6 @@ from os import listdir
 from os.path import isfile, join
 from PIL import Image, ImageEnhance
 from skimage.color import rgb2gray
-from sklearn.cluster import KMeans
 from skimage.io import imread
 from statistics import mean
 import colorsys, matplotlib.pyplot, numpy, os, pygame, sys
@@ -560,7 +559,7 @@ class Line(object):
         # Index 2 : MSE ; Index 3 : sample standard deviation of the distances in each segment; Index 4 sample standard deviation of the distances in all segments;
         return [minSS[0], minSS[1], minSS[2] / totalPoints, MSEArr] 
     
-    #fit vertical lines but not with strict intervals
+    # fit vertical lines but not with strict intervals
     def getVerticalFit(self, points, rows, width):
             # Calculate the width of each strip
         stripWidth = round(width / rows)
@@ -578,21 +577,21 @@ class Line(object):
         totalPointsNum = 0
         
         for subPoint in subPoints:
-            #If the fit equation is y = a*x + b, you can find the intercept b that best fits you data, given a fixed slope a = A, as: 
-            #b = np.mean(y - A*x) #In this case fit x = b, A = 0
-            intercept = numpy.mean(numpy.array(subPoint)[:,1])
+            # If the fit equation is y = a*x + b, you can find the intercept b that best fits you data, given a fixed slope a = A, as: 
+            # b = np.mean(y - A*x) #In this case fit x = b, A = 0
+            intercept = numpy.mean(numpy.array(subPoint)[:, 1])
             verticalLines.append(intercept)
             segSS = 0
             for point in subPoint:
-                pointSS = (point[1]-intercept)**2
+                pointSS = (point[1] - intercept) ** 2
                 totalSS += pointSS
                 segSS += pointSS
              
-            MSEArr.append(segSS/len(subPoint))
+            MSEArr.append(segSS / len(subPoint))
             totalPointsNum += len(subPoint)
         
-        #index 0 : intecept of all fitting lines, index 1 : totalMSE; index 2: array of mse in each segment.
-        return [verticalLines,totalSS/totalPointsNum,MSEArr]     
+        # index 0 : intecept of all fitting lines, index 1 : totalMSE; index 2: array of mse in each segment.
+        return [verticalLines, totalSS / totalPointsNum, MSEArr]     
     
     # Gets the coordinates of all the white pixels in the image
     def getPoints(self, img):
@@ -704,83 +703,81 @@ def binarizeImg(img):
     
     return img.convert('1')
 
-
 # Threshold Segmentation for test purposes
-def thresholdSegmentation():
-    
-    image = matplotlib.pyplot.imread('1117_607.png')
-    image.shape
-    
-    # matplotlib.pyplot.imshow(image)
-    
-    gray = rgb2gray(image)
-    # matplotlib.pyplot.imshow(gray, cmap='gray')
-    
-    gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
-    
-    for i in range(gray_r.shape[0]):
-        
-        if gray_r[i] > gray_r.mean():
-            
-            gray_r[i] = 1
-            
-        else:
-            
-            gray_r[i] = 0
-            
-    gray = gray_r.reshape(gray.shape[0], gray.shape[1])
-    # matplotlib.pyplot.imshow(gray, cmap='gray')
-    
-    # matplotlib.pyplot.imshow(image)
-    
-    gray = rgb2gray(image)
-    gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
-    
-    for i in range(gray_r.shape[0]):
-        
-        if gray_r[i] > gray_r.mean():
-            
-            gray_r[i] = 3
-            
-        elif gray_r[i] > 0.5:
-            
-            gray_r[i] = 2
-            
-        elif gray_r[i] > 0.25:
-            
-            gray_r[i] = 1
-            
-        else:
-            
-            gray_r[i] = 0
-            
-    gray = gray_r.reshape(gray.shape[0], gray.shape[1])
-    matplotlib.pyplot.imsave('test.png', gray, cmap='gray')
-    
-    # img = Image.fromarray(gray , 'L')
-    # return img
-
+# def thresholdSegmentation():
+#     
+#     image = matplotlib.pyplot.imread('1117_607.png')
+#     image.shape
+#     
+#     # matplotlib.pyplot.imshow(image)
+#     
+#     gray = rgb2gray(image)
+#     # matplotlib.pyplot.imshow(gray, cmap='gray')
+#     
+#     gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
+#     
+#     for i in range(gray_r.shape[0]):
+#         
+#         if gray_r[i] > gray_r.mean():
+#             
+#             gray_r[i] = 1
+#             
+#         else:
+#             
+#             gray_r[i] = 0
+#             
+#     gray = gray_r.reshape(gray.shape[0], gray.shape[1])
+#     # matplotlib.pyplot.imshow(gray, cmap='gray')
+#     
+#     # matplotlib.pyplot.imshow(image)
+#     
+#     gray = rgb2gray(image)
+#     gray_r = gray.reshape(gray.shape[0] * gray.shape[1])
+#     
+#     for i in range(gray_r.shape[0]):
+#         
+#         if gray_r[i] > gray_r.mean():
+#             
+#             gray_r[i] = 3
+#             
+#         elif gray_r[i] > 0.5:
+#             
+#             gray_r[i] = 2
+#             
+#         elif gray_r[i] > 0.25:
+#             
+#             gray_r[i] = 1
+#             
+#         else:
+#             
+#             gray_r[i] = 0
+#             
+#     gray = gray_r.reshape(gray.shape[0], gray.shape[1])
+#     matplotlib.pyplot.imsave('test.png', gray, cmap='gray')
+#     
+#     # img = Image.fromarray(gray , 'L')
+#     # return img
 
 # K-Means Segmentation for test purposes
-def kMeansSegmentation():
-    
-    pic = matplotlib.pyplot.imread('1117_607.png') / 225  # dividing by 255 to bring the pixel values between 0 and 1
-    # print(pic.shape)
-    # matplotlib.pyplot.imshow(pic)
-    
-    pic_n = pic.reshape(pic.shape[0] * pic.shape[1], pic.shape[2])
-    pic_n.shape
-    
-    kmeans = KMeans(n_clusters=5, random_state=0).fit(pic_n)
-    pic2show = kmeans.cluster_centers_[kmeans.labels_]
-    
-    cluster_pic = pic2show.reshape(pic.shape[0], pic.shape[1], pic.shape[2])
-    # matplotlib.pyplot.imshow(cluster_pic)
-    
-    matplotlib.pyplot.imsave('test.png', cluster_pic)
-    
-    # img = Image.fromarray(cluster_pic , 'L')
-    # return img
+# def kMeansSegmentation():
+#     
+#     pic = matplotlib.pyplot.imread('1117_607.png') / 225  # dividing by 255 to bring the pixel values between 0 and 1
+#     # print(pic.shape)
+#     # matplotlib.pyplot.imshow(pic)
+#     
+#     pic_n = pic.reshape(pic.shape[0] * pic.shape[1], pic.shape[2])
+#     pic_n.shape
+#     
+#     kmeans = KMeans(n_clusters=5, random_state=0).fit(pic_n)
+#     pic2show = kmeans.cluster_centers_[kmeans.labels_]
+#     
+#     cluster_pic = pic2show.reshape(pic.shape[0], pic.shape[1], pic.shape[2])
+#     # matplotlib.pyplot.imshow(cluster_pic)
+#     
+#     matplotlib.pyplot.imsave('test.png', cluster_pic)
+#     
+#     # img = Image.fromarray(cluster_pic , 'L')
+#     # return img
 
 
 # Filters clusters based on pixel density and represents each cluster with a single point (dot)
