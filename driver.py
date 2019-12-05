@@ -25,7 +25,7 @@ pygame.init()
 timestamp = datetime.now()
 
 # Initialize name of the log directory
-logF = "log"
+logF = "logs"
 
 # Create log folder if it does not exist
 if not os.path.isdir(logF):
