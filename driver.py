@@ -4,6 +4,7 @@ Created on Sep 18, 2019
 @author: Anik
 '''
 
+from datetime import datetime
 from numpy import ones, vstack
 from numpy.linalg import lstsq, norm
 from os import listdir
@@ -19,6 +20,34 @@ OUTPUTFOLDERNAME = "filtered_images"
 MAXROWS = 50
 
 pygame.init()
+
+# Initialize timestamp
+timestamp = datetime.now()
+
+# Initialize name of the log directory
+logF = "log"
+
+# Create log folder if it does not exist
+if not os.path.isdir(logF):
+    
+    os.mkdir(logF)
+    
+# Create log file with current timestamp
+logFileName = timestamp.strftime("%Y_%m_%d_%H_%M_%S")
+logFile = open(logF + "/" + logFileName + ".log", "w+")
+
+
+def logOutput(outputs):
+    
+    # # Write outputs to log file
+    for output in outputs:
+    
+        logFile.write(output)
+    
+    logFile.write("\n")
+    
+    # Display output in console
+    print(outputs)
 
 
 # Class for adjusting image level
@@ -57,9 +86,11 @@ class File(object):
     # Constructor
     def __init__(self, inF, outF):
         
+        # Initialize input and output directories
         self.inF = inF
         self.outF = outF
         
+        # Clear output directory to avoid storing images from past executions
         if os.path.isdir(self.outF):
             
             self.clearFolder(self.outF)
@@ -83,7 +114,7 @@ class File(object):
                     
             except Exception as e:
                 
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
+                logOutput('Failed to delete %s. Reason: %s' % (file_path, e))
     
     # Returns a list of filenames in the Input Folder
     def getFileNames(self):
@@ -151,7 +182,7 @@ class File(object):
             
         except FileNotFoundError:
             
-            print ("Invalid filename")
+            logOutput ("Invalid filename")
         
         return img
     
@@ -166,7 +197,7 @@ class File(object):
             
         except FileNotFoundError:
             
-            print ("Invalid filename")
+            logOutput ("Invalid filename")
         
         return img
 
@@ -280,7 +311,7 @@ class Line(object):
         A = vstack([x_coords, ones(len(x_coords))]).T
         m, c = lstsq(A, y_coords)[0]
         
-        print("Line Solution is y = {m}x + {c}".format(m=m, c=c))
+        logOutput("Line Solution is y = {m}x + {c}".format(m=m, c=c))
     
     # Returns the distance between a point and a line segment
     def getShortestDist(self, point, segment):
@@ -322,8 +353,8 @@ class Line(object):
                     # Update top point, bottom point, sum of all distances between all the points and the line segment, and deviation
                     minDist = [(0, i + start), (height, j + start), totalDist, pow(2, totalDist / (pointCount + 1)) / 10]
         
-        # print("Best Fit Strip : ", minDist)
-        # print(minDist[3], " ", end='')
+        # logOutput("Best Fit Strip : ", minDist)
+        # logOutput(minDist[3], " ", end='')
         return [minDist[0], minDist[1], minDist[3]]
     
     # Fits a line in a subset of points that reside between a starting value and an ending value of y
@@ -395,19 +426,19 @@ class Line(object):
         # Calculate the sum of all shortest distances of all the subpoints from their respective line segments after strict fitting lines are acquired
         subDist = []
         
-        # print(minDist)
+        # logOutput(minDist)
         
         for i in range(rows):
             
             dist, subCount = self.getSubDistSum(points, (stripWidth * (i + self.sideTrim)), (stripWidth * (i + 1 - self.sideTrim)), ([(0, firstLineY + (i * lineGap)), (height, firstLineY + (i * lineGap))]))     
             # subDist.append(pow(2, dist / subCount) / 10)
             subDist.append(dist / subCount)
-            # print (dist, subCount)
+            # logOutput (dist, subCount)
         
         # subDist = self.getSubDistSum(points, 0, stripWidth, [(0, firstLineY), (height, firstLineY)])
         
-        # print("Strict Fit Range : ", minDist[2], subDist)
-        print(subDist[0], subDist[1], subDist[2], subDist[3])
+        # logOutput("Strict Fit Range : ", minDist[2], subDist)
+        logOutput(subDist[0], subDist[1], subDist[2], subDist[3])
         return [minDist[0], minDist[1]]
     
     # Strict fitting model using MSE
@@ -564,8 +595,8 @@ class Line(object):
             # strictLinesY.append(strictLine)
             SS_eachSeg = 0
             
-            # print(subPoints[row])
-            # print("length of subpoints is %d",len(subPoints[row]))
+            # logOutput(subPoints[row])
+            # logOutput("length of subpoints is %d",len(subPoints[row]))
             for subpoint in subPoints[row]:                  
                 SS = (subpoint[1] - strictLine) ** 2
                 SS_eachSeg = SS_eachSeg + SS
@@ -576,7 +607,7 @@ class Line(object):
                 MSEArr.append(SS_eachSeg / len(subPoints[row]))
             totalPoints = totalPoints + len(subPoints[row])
                
-        # print(pointCount)
+        # logOutput(pointCount)
         # Index 2 : MSE ; Index 3 : sample standard deviation of the distances in each segment; Index 4 sample standard deviation of the distances in all segments;
         return [minSS[0], minSS[1], minSS[2] / totalPoints, MSEArr] 
     
@@ -783,7 +814,7 @@ def binarizeImg(img):
 # def kMeansSegmentation():
 #     
 #     pic = matplotlib.pyplot.imread('1117_607.png') / 225  # dividing by 255 to bring the pixel values between 0 and 1
-#     # print(pic.shape)
+#     # logOutput(pic.shape)
 #     # matplotlib.pyplot.imshow(pic)
 #     
 #     pic_n = pic.reshape(pic.shape[0] * pic.shape[1], pic.shape[2])
@@ -888,7 +919,7 @@ def bulkProcess(imageList):
         processedImageList.append(trimmedImg)
         
         # Display status
-        print("Image {:03d}.png processing completed".format(i))
+        logOutput("Image {:03d}.png processing completed".format(i))
     
     return processedImageList
 
@@ -907,14 +938,14 @@ def bulkFilter(imageList, thresh):
         filteredImageList.append(filteredImg)
         
         # Display status
-        print("Image {:03d}.png cluster filtering completed".format(i))
+        logOutput("Image {:03d}.png cluster filtering completed".format(i))
         
     return filteredImageList
 
 
 def imageProcessFull(imgName):
     
-    print("Starting image processing..")
+    logOutput("Starting image processing..")
     
     # Initialize process handler
     handlerProcess = File(INPUTFOLDERNAME, INTERMEDFOLDERNAME)
@@ -939,9 +970,9 @@ def imageProcessFull(imgName):
     # Save image
     handlerProcess.setImages(processedImageList)
     
-    print("All images have been processed successfully")
+    logOutput("All images have been processed successfully")
     
-    print("Starting image filtering..")
+    logOutput("Starting image filtering..")
     
     # Initialize filter handler
     handlerFilter = File(INTERMEDFOLDERNAME, OUTPUTFOLDERNAME)
@@ -955,9 +986,9 @@ def imageProcessFull(imgName):
     # Save image
     handlerFilter.setSKImages(filteredImageList)
     
-    print("All images have been filtered successfully")
+    logOutput("All images have been filtered successfully")
     
-    print("Starting row count estimation..")
+    logOutput("Starting row count estimation..")
     
     # Specify row count estimation and line fitting parameters
     lineFitAlg = "overlap"
@@ -983,7 +1014,7 @@ def imageProcessFull(imgName):
             
         except FileNotFoundError:
             
-            print ("Invalid fileName")
+            logOutput ("Invalid fileName")
         
         # Image properties
         height = len(img)
@@ -1003,7 +1034,7 @@ def imageProcessFull(imgName):
         estStrictBounds = []
         estLineGap = -1
         
-        print("Estimating row count for %03d.png using best fit algorithm.." % x)
+        logOutput("Estimating row count for %03d.png using best fit algorithm.." % x)
     
         for r in range(MAXROWS):
             
@@ -1029,15 +1060,15 @@ def imageProcessFull(imgName):
                     # Append ONLY the line segmentBF to the list of line segments
                     segmentsBF.append((segmentBF[0], segmentBF[1]))
                     
-                    # Print current deviation/MSE of the line segmentBF
-                    # print(segmentBF[2], " ", end='')
+                    # logOutput current deviation/MSE of the line segmentBF
+                    # logOutput(segmentBF[2], " ", end='')
                     
                     # Update deviation/MSE
                     totalMSEBF += segmentBF[2]
                 
-                # Print average deviation/MSE
+                # logOutput average deviation/MSE
                 avgMSEBF = totalMSEBF / rows
-                print("MSE for %02d row(s) using best fit algorithm\t: " % rows, avgMSEBF)
+                logOutput("MSE for %02d row(s) using best fit algorithm\t: " % rows + str(avgMSEBF))
                 
                 # Update minimum average deviation/MSE
                 if avgMSEBF < minMSEBF:
@@ -1054,7 +1085,7 @@ def imageProcessFull(imgName):
                     continueBF = False
                     break
         
-        print("Estimating row count for %03d.png using strict fit algorithm.." % x)
+        logOutput("Estimating row count for %03d.png using strict fit algorithm.." % x)
         
         for r in range(MAXROWS):
             
@@ -1072,11 +1103,11 @@ def imageProcessFull(imgName):
                 strictBounds = line.getStrictFit2(points, rows, width)  # MSE Minimization Variation
                 
                 lineGap = (strictBounds[1] - strictBounds[0]) / (rows - 1)
-                # print("mean square error for image %03d is %f; standard deviation is %f" % (x, strictBounds[2], strictBounds[4]))
+                # logOutput("mean square error for image %03d is %f; standard deviation is %f" % (x, strictBounds[2], strictBounds[4]))
                 
-                # Print average deviation/MSE
-                # print(strictBounds[2], strictBounds[4])
-                print("MSE for %02d row(s) using strict fit algorithm:\t: " % rows, strictBounds[4], strictBounds[2])
+                # logOutput average deviation/MSE
+                # logOutput(strictBounds[2], strictBounds[4])
+                logOutput("MSE for %02d row(s) using strict fit algorithm:\t: " % rows + str(strictBounds[4]) + " " + str(strictBounds[2]))
                 
                 # Update minimum average deviation/MSE
                 if strictBounds[4] < minMSESF:
@@ -1095,19 +1126,19 @@ def imageProcessFull(imgName):
                     continueSF = False
                     break
                 
-                # print out deviation for each segmentBF
-                # print(*strictBounds[3])
+                # logOutput out deviation for each segmentBF
+                # logOutput(*strictBounds[3])
                 
-        print("Estimated row(s) using best fitting algorithm\t: ", estRowBF)
-        print("Estimated row(s) using strict fitting algorithm\t: ", estRowSF)
+        logOutput("Estimated row(s) using best fitting algorithm\t: " + str(estRowBF))
+        logOutput("Estimated row(s) using strict fitting algorithm\t: " + str(estRowSF))
         
         if (estRowBF > estRowSF):
             
-            print("Lodging detected")
+            logOutput("Lodging detected")
             
         if (estRowBF < estRowSF):
             
-            print("High lodging detected")
+            logOutput("High lodging detected")
                 
         # Definitions for pygame
         if(draw):
@@ -1171,7 +1202,7 @@ def imageProcessFull(imgName):
             
             # break
     
-    print("Program successfully terminated")
+    logOutput("Program successfully terminated")
 
 
 # Main function
@@ -1216,7 +1247,7 @@ def main():
                     
                 except FileNotFoundError:
                     
-                    print ("Invalid filename")
+                    logOutput ("Invalid filename")
                 
                 # Image properties
                 height = len(img)
@@ -1242,15 +1273,15 @@ def main():
                         # Append ONLY the line segment to the list of line segments
                         segments.append((segment[0], segment[1]))
                         
-                        # Print current deviation/MSE of the line segment
-                        # print(segment[2], " ", end='')
+                        # logOutput current deviation/MSE of the line segment
+                        # logOutput(segment[2], " ", end='')
                         
                         # Update deviation/MSE
                         totalMSE += segment[2]
                     
-                    # Print average deviation/MSE
+                    # logOutput average deviation/MSE
                     avgMSE = totalMSE / rows
-                    print("MSE for %02d row(s) : " % rows, avgMSE)
+                    logOutput("MSE for %02d row(s) : " % rows, avgMSE)
                     
                     # Update minimum average deviation/MSE
                     if avgMSE < minMSE:
@@ -1269,11 +1300,11 @@ def main():
                     strictBounds = line.getStrictFit2(points, rows, width)  # MSE Minimization Variation
                     
                     lineGap = (strictBounds[1] - strictBounds[0]) / (rows - 1)
-                    # print("mean square error for image %03d is %f; standard deviation is %f" % (x, strictBounds[2], strictBounds[4]))
+                    # logOutput("mean square error for image %03d is %f; standard deviation is %f" % (x, strictBounds[2], strictBounds[4]))
                     
-                    # Print average deviation/MSE
-                    # print(strictBounds[2], strictBounds[4])
-                    print("MSE for %02d row(s) : " % rows, strictBounds[4], strictBounds[2])
+                    # logOutput average deviation/MSE
+                    # logOutput(strictBounds[2], strictBounds[4])
+                    logOutput("MSE for %02d row(s) : " % rows, strictBounds[4], strictBounds[2])
                     
                     # Update minimum average deviation/MSE
                     if strictBounds[4] < minMSE:
@@ -1283,8 +1314,8 @@ def main():
                     if strictBounds[4] > minMSE:
                         break
                     
-                    # print out deviation for each segment
-                    # print(*strictBounds[3])
+                    # logOutput out deviation for each segment
+                    # logOutput(*strictBounds[3])
                     
                     for i in range(rows):
                         
@@ -1367,7 +1398,7 @@ def main():
             
             break
                         
-        print("Estimated row(s) : ", estRow)
+        logOutput("Estimated row(s) : ", estRow)
             
     elif (mode == "process"):
     
@@ -1395,7 +1426,7 @@ def main():
         # Save images
         handlerFilter.setSKImages(filteredImageList)
     
-    # print("Program successfully terminated")
+    # logOutput("Program successfully terminated")
 
 
 if __name__ == '__main__':
