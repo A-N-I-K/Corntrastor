@@ -86,7 +86,7 @@ class File(object):
                 print('Failed to delete %s. Reason: %s' % (file_path, e))
     
     # Returns a list of filenames in the Input Folder
-    def getFilenames(self):
+    def getFileNames(self):
         
         if not os.path.isdir(self.inF):
             
@@ -109,7 +109,7 @@ class File(object):
     # Returns a list of sci-kit image objects in the input folder
     def getSKImages(self):
         
-        filenames = self.getFilenames()
+        filenames = self.getFileNames()
         imageList = []
         
         for file in filenames:
@@ -912,18 +912,26 @@ def bulkFilter(imageList, thresh):
     return filteredImageList
 
 
-def singleImageFullProcess(imgName):
+def imageProcessFull(imgName):
     
     print("Starting image processing..")
     
     # Initialize process handler
     handlerProcess = File(INPUTFOLDERNAME, INTERMEDFOLDERNAME)
     
-    # Initialize an empty image list
-    imageList = []
-    
-    # Get image
-    imageList.append(handlerProcess.getImg(imgName))
+    # determine mode of operation; batch or single
+    if (imgName == "batch"):
+        
+        # Get all images in the folder
+        imageList = handlerProcess.getImages()
+        
+    else:
+        
+        # Initialize an empty image list
+        imageList = []
+        
+        # Get image
+        imageList.append(handlerProcess.getImg(imgName))
     
     # Process image
     processedImageList = bulkProcess(imageList)
@@ -954,7 +962,7 @@ def singleImageFullProcess(imgName):
     # Specify row count estimation and line fitting parameters
     lineFitAlg = "overlap"
     sideTrim = 0.10
-    draw = True
+    draw = False
     
     for x in range(len(imageList)):
         
@@ -1178,7 +1186,7 @@ def main():
     # Enable or disable on-screen display; DO NOT enable in batch mode
     draw = False
     
-    singleImageFullProcess("019_105.png")
+    imageProcessFull("batch")
     
     sideTrim = 0.10
     
