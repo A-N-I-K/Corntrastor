@@ -17,7 +17,7 @@ import colorsys, matplotlib.pyplot, numpy, os, pygame, shutil, statistics, sys
 INPUTFOLDERNAME = "raw_images"
 INTERMEDFOLDERNAME = "processed_images"
 OUTPUTFOLDERNAME = "filtered_images"
-MAXROWS = 50
+MAXROWS = 20
 
 pygame.init()
 
@@ -1100,25 +1100,26 @@ def imageProcessFull(imgName):
                 # Execute strict fit algorithm
                 
                 # strictBounds = line.getStrictFit(points, rows, height, width)
-                strictBounds = line.getStrictFit2(points, rows, width)  # MSE Minimization Variation
+                strictBounds = line.getStrictFit3(points, rows, width)  # MSE Minimization Variation
                 
                 lineGap = (strictBounds[1] - strictBounds[0]) / (rows - 1)
                 # logOutput("mean square error for image %03d is %f; standard deviation is %f" % (x, strictBounds[2], strictBounds[4]))
                 
                 # logOutput average deviation/MSE
                 # logOutput(strictBounds[2], strictBounds[4])
-                logOutput("MSE for %02d row(s) using strict fit algorithm:\t: " % rows + str(strictBounds[4]) + " " + str(strictBounds[2]))
+                # logOutput("MSE for %02d row(s) using strict fit algorithm:\t: " % rows + str(strictBounds[4]) + " " + str(strictBounds[2]))
+                logOutput("MSE for %02d row(s) using strict fit algorithm:\t: " % rows + str(strictBounds[2]))
                 
                 # Update minimum average deviation/MSE
-                if strictBounds[4] < minMSESF:
+                if strictBounds[2] < minMSESF:
                     
-                    minMSESF = strictBounds[4]
+                    minMSESF = strictBounds[2]
                     estRowSF = rows
                     
                     estStrictBounds = strictBounds
                     estLineGap = lineGap
                 
-                if strictBounds[4] > minMSESF:
+                if strictBounds[2] > minMSESF:
                     
                     strictBounds = estStrictBounds
                     lineGap = estLineGap
